@@ -17,19 +17,7 @@ from tqdm import tqdm
 # %%
 CFG = {
     'NBITS': 2048,
-    'SEED': 42,
 }
-
-
-# %%
-def seed_everything(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-
-
-seed_everything(CFG['SEED'])  # Seed 고정
-
 
 # %%
 # SMILES 데이터를 분자 지문으로 변환

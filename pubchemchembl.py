@@ -14,7 +14,7 @@ from torch.utils.data import TensorDataset
 morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2,fpSize=2048)
 # morgan_gen = rdMolDescriptors.GetMorganGenerator(radius=2, fpSize=4096)
 
-data = pd.read_csv('filtered_pubchemchembl.tsv', sep='\t')
+data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
 
 def mol2fp(mol):
     # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)

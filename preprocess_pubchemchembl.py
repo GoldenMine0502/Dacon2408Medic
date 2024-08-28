@@ -23,4 +23,4 @@ print('na count:', data.Molecule.isna().sum())
 data = data[data['Molecule'].notna()]
 print('total:', len(data), round(time.time() - current, 2))
 
-data.drop(columns=['Molecule']).to_csv('filtered_pubchemchembl.tsv', sep='\t', index=False)
+data.drop(columns=['Molecule']).to_csv('dataset/filtered_pubchemchembl.tsv', sep='\t', index=False)

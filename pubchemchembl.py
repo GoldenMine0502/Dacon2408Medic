@@ -10,11 +10,17 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset
+from rdkit.Chem import PandasTools
 
 morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2,fpSize=2048)
 # morgan_gen = rdMolDescriptors.GetMorganGenerator(radius=2, fpSize=4096)
 
 data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
+
+PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
+data[["SMILES", "Molecule"]].head(1)
+print('Molecule initialized')
+
 
 def mol2fp(mol):
     # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)

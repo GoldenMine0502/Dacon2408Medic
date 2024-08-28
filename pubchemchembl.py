@@ -139,7 +139,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 model.train()  # Ensure the network is in "train" mode with dropouts active
 epochs = 200
 for e in range(epochs):
-    print('epoch ', e)
+    print('epoch', e)
     running_loss = 0
     count = 0
     for fps, labels in tqdm(pbar := train_loader, ncols=75):
@@ -157,7 +157,7 @@ for e in range(epochs):
         # pbar.set_description(f"loss: {round(running_loss / count, 4)}")
     else:
         if e % 10 == 0:
-            validation_loss = torch.mean((y_validation - model(X_validation)) ** 2).item()
+            validation_loss = torch.mean((y_validation - model(X_validation)) ** 2).item()  # MSE
             print("Epoch: %3i Training loss: %0.2F Validation loss: %0.2F" % (
                 e, (running_loss / len(train_loader)), validation_loss))
 

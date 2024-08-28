@@ -18,8 +18,7 @@ morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2,fpSize=2048)
 data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
 
 PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
-data[["SMILES", "Molecule"]].head(1)
-print('Molecule initialized')
+print(data[["SMILES", "Molecule"]].head(1))
 
 
 def mol2fp(mol):

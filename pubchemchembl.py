@@ -135,11 +135,11 @@ def collate_fn(batch):
 # validation_dataset = TensorDataset(X_validation, y_validation)
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(X_train, y_train),
-                                           batch_size=256,
+                                           batch_size=1024,
                                            shuffle=True,
                                            collate_fn=collate_fn)
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(X_validation, y_validation),
-                                                batch_size=256,
+                                                batch_size=1024,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(dataset=Dataset(X_test, y_test),

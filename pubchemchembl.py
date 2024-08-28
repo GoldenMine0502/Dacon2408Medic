@@ -51,18 +51,19 @@ print('train data:', X.shape)
 y = data.pXC50.values.reshape((-1, 1))
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
 X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
-print('len (x train, x test, y train, y test, x_vali, y_vali):', len(X_train), len(X_test), len(y_train), len(y_test), len(X_validation), len(y_validation))
+print('len (x train, x test, y train, y test, x_vali, y_vali):', len(X_train), len(X_test), len(y_train), len(y_test),
+      len(X_validation), len(y_validation))
 # Normalizing output using standard scaling
-# scaler = StandardScaler()
-# y_train = scaler.fit_transform(y_train)
-# y_test = scaler.transform(y_test)
-# y_validation = scaler.transform(y_validation)
+scaler = StandardScaler()
+y_train = scaler.fit_transform(y_train)
+y_test = scaler.transform(y_test)
+y_validation = scaler.transform(y_validation)
 
 # We'll remove low variance features
-# feature_select = VarianceThreshold(threshold=0.05)
-# X_train = feature_select.fit_transform(X_train)
-# X_validation = feature_select.transform(X_validation)
-# X_test = feature_select.transform(X_test)
+feature_select = VarianceThreshold(threshold=0.05)
+X_train = feature_select.fit_transform(X_train)
+X_validation = feature_select.transform(X_validation)
+X_test = feature_select.transform(X_test)
 print('shape (fit):', X_train.shape)
 
 # Let's get those arrays transfered to the GPU memory as tensors
@@ -84,26 +85,19 @@ class Dataset:
         self.X = X
         self.y = y
         self.train = train
-        self.scaler = StandardScaler()
-        self.feature_select = VarianceThreshold(threshold=0.05)
 
     def __len__(self):
         return len(self.y)
 
     def __getitem__(self, idx):
         item_x = self.X[idx]
-        if self.train:
-            item_x = self.feature_select.fit_transform(item_x)
-        else:
-            item_x = self.feature_select.transform(item_x)
-
         item_y = self.y[idx]
-        if self.train:
-            item_y = self.scaler.fit_transform(item_y)
-        else:
-            item_y = self.scaler.transform(item_y)
 
         return item_x, item_y
+
+
+scaler = StandardScaler()
+feature_select = VarianceThreshold(threshold=0.05)
 
 
 def collate_fn(batch):
@@ -113,7 +107,20 @@ def collate_fn(batch):
         x_list.append(batch_X)
         y_list.append(batch_y)
 
-    return torch.tensor(x_list), torch.tensor(y_list)
+    x_list = np.array(x_list)
+    y_list = np.array(y_list)
+
+    # if train:
+    #     item_x = feature_select.fit_transform(x_list)
+    # else:
+    #     item_x = feature_select.transform(x_list)
+    #
+    # if train:
+    #     item_y = scaler.fit_transform(y_list)
+    # else:
+    #     item_y = scaler.transform(y_list)
+
+    return torch.tensor(x_list, dtype=torch.float32), torch.tensor(y_list, dtype=torch.float32)
 
 
 # train_dataset = TensorDataset(X_train, y_train)
@@ -121,13 +128,16 @@ def collate_fn(batch):
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(X_train, y_train),
                                            batch_size=256,
-                                           shuffle=True)
+                                           shuffle=True,
+                                           collate_fn=collate_fn)
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(X_validation, y_validation),
                                                 batch_size=256,
-                                                shuffle=False)
+                                                shuffle=False,
+                                                collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(dataset=Dataset(X_test, y_test),
                                           batch_size=1,
-                                          shuffle=False)
+                                          shuffle=False,
+                                          collate_fn=collate_fn)
 
 print('dataloader loaded')
 
@@ -169,7 +179,7 @@ class Net(nn.Module):
 
 
 # Defining the hyperparameters
-input_size = 2048  # The input size should fit our fingerprint size
+input_size = X_train.shape[-1]  # The input size should fit our fingerprint size
 hidden_size = 1024  # The size of the hidden layer
 dropout_rate = 0.80  # The dropout rate
 output_size = 1  # This is just a single task, so this will be one
@@ -186,9 +196,11 @@ for e in range(epochs):
     print('epoch', e)
     running_loss = 0
     count = 0
-    for fps, labels in tqdm(pbar := train_loader, ncols=75):
+    for fps, labels in (pbar := tqdm(train_loader, ncols=75)):
         fps = fps.to(device)
         labels = labels.to(device)
+        # print(fps, labels)
+        # print(fps.shape, labels.shape)
         # Training pass
         optimizer.zero_grad()  # Initialize the gradients, which will be recorded during the forward pa
 

@@ -44,7 +44,7 @@ def mol2fp(smile):
 data["FPs"] = data["SMILES"].progress_apply(mol2fp)
 
 X = np.stack(data.FPs.values)
-print('X', X.shape)
+print('train data:', X.shape)
 
 y = data.pXC50.values.reshape((-1, 1))
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
@@ -61,7 +61,7 @@ feature_select = VarianceThreshold(threshold=0.05)
 X_train = feature_select.fit_transform(X_train)
 X_validation = feature_select.transform(X_validation)
 X_test = feature_select.transform(X_test)
-print('train', X_train.shape)
+print('shape (fit):', X_train.shape)
 
 # Let's get those arrays transfered to the GPU memory as tensors
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,10 +80,10 @@ train_dataset = TensorDataset(X_train, y_train)
 validation_dataset = TensorDataset(X_validation, y_validation)
 
 train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=256,
+                                           batch_size=32,
                                            shuffle=True)
 validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset,
-                                                batch_size=256,
+                                                batch_size=32,
                                                 shuffle=False)
 print('dataloader loaded')
 

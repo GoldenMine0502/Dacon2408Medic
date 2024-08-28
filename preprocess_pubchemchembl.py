@@ -77,6 +77,7 @@ X_validation = feature_select.transform(X_validation)
 X_test = feature_select.transform(X_test)
 
 joblib.dump(scaler, 'dataset/scaler.save')
+joblib.dump(feature_select, 'dataset/variance_threshold.save')
 print('shape (fit):', X_train.shape)
 
 np.save("dataset/pubchemchembl_x_train.npy", X_train)

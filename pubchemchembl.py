@@ -187,6 +187,8 @@ class Net(nn.Module):
         return out
 
 
+print(X_train.shape)
+
 # Defining the hyperparameters
 input_size = X_train.shape[-1]  # The input size should fit our fingerprint size
 hidden_size = 1024  # The size of the hidden layer
@@ -199,7 +201,7 @@ model.to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-epochs = 200
+epochs = 0
 for e in range(epochs):
     model.train()  # Ensure the network is in "train" mode with dropouts active
     print('epoch', e)
@@ -239,14 +241,14 @@ for e in range(epochs):
                 sum(validation_losses) / len(validation_losses)
             ))
 
-model.eval()  #Swith to evaluation mode, where dropout is switched off
-y_pred_train = model(X_train)
-y_pred_validation = model(X_validation)
+# model.eval()  #Swith to evaluation mode, where dropout is switched off
+# y_pred_train = model(X_train)
+# y_pred_validation = model(X_validation)
 # y_pred_test = model(X_test.to(device))
 # y_test = y_test.to(device)
 
-print('mean:', torch.mean((y_train - y_pred_train) ** 2).item())
-print(torch.mean((y_validation - y_pred_validation) ** 2).item())
+# print('mean:', torch.mean((y_train - y_pred_train) ** 2).item())
+# print(torch.mean((y_validation - y_pred_validation) ** 2).item())
 # print(torch.mean((y_test - y_pred_test) ** 2).item())
 
 # def flatten(tensor):
@@ -278,15 +280,23 @@ def mol2fp(smile):
     return ar
 
 
+scaler = joblib.load('dataset/scaler.save')
+variance_threshold = joblib.load('dataset/variance_threshold.save')
+
+
 def predict_smiles(smiles):
     fp = mol2fp(smiles).reshape(1, -1)
     # fp_filtered = feature_select.transform(fp)
     # fp_tensor = torch.tensor(fp_filtered, device=device).float()
+    # print(fp.shape)
+    fp = variance_threshold.transform(fp)
+    # print(fp.shape)
     fp_tensor = torch.tensor(fp, device=device).float()
     prediction = model(fp_tensor)
     #return prediction.cpu().detach().numpy()
     # pXC50 = scaler.inverse_transform(prediction.cpu().detach().numpy())
-    pXC50 = prediction.cpu().detach().numpy()
+    # pXC50 = prediction.cpu().detach().numpy()
+    pXC50 = scaler.inverse_transform(prediction.cpu().detach().numpy())
     return pXC50[0][0]
 
 
@@ -295,22 +305,37 @@ def pIC50_to_IC50(pic50_values):
     return 10 ** (9 - pic50_values)
 
 
-scaler = joblib.load('dataset/scaler.save')
 model.eval()  # Set the model to evaluation mode
 test_predictions = []
 
-with torch.no_grad():
-    for fps, labels in test_loader:
-        fps = fps.to(device)
-        labels = labels.to(device)
-        output = model(fps)
-        pXC50 = scaler.inverse_transform(output.cpu().detach().numpy())
-        test_predictions.append(pXC50[0][0])
-
-test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
 
 test_df = pd.read_csv('test.csv')
+
+with torch.no_grad():
+    smiles = test_df["Smiles"]
+    test_df["FPs"] = test_df["Smiles"].apply(mol2fp)
+
+    input_ids_tensor = torch.tensor(test_df["FPs"].tolist(), dtype=torch.int32)
+    # attention_mask_tensor = torch.tensor(data["attention_mask"].tolist(), dtype=torch.int32)
+    test_loader = TensorDataset(input_ids_tensor)
+
+    results = []
+
+    for smile in smiles:
+        res = predict_smiles(smile)
+        results.append(res)
+        # fps = fps.to(device)
+        # # labels = labels.to(device)
+        # output = model(fps)
+        # pXC50 = scaler.inverse_transform(output.cpu().detach().numpy())
+        # test_predictions.append(pXC50[0][0])
+
+    test_df["IC50_nM"] = pIC50_to_IC50(np.array(results))
+
+# test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
+
+# test_df = pd.read_csv('test.csv')
 # print(predict_smiles('Cc1ccc2c(N3CCNCC3)cc(F)cc2n1'))
-test_df["IC50_nM"] = test_ic50_predictions
+# test_df["IC50_nM"] = test_ic50_predictions
 submission_df = test_df[["ID", "IC50_nM"]]
 submission_df.to_csv("submission.csv", index=False)

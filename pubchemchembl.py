@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset
 
+from preprocess_pubchemchembl import mol2fp
 
 # tqdm.pandas(ncols=75)
 #
@@ -77,14 +78,37 @@ y_test = torch.tensor(y_test, device=device).float()
 y_validation = torch.tensor(y_validation, device=device).float()
 print(X_train)
 
-train_dataset = TensorDataset(X_train, y_train)
-validation_dataset = TensorDataset(X_validation, y_validation)
 
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=32,
+class Dataset:
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
+
+def collate_fn(batch):
+    x_list = []
+    y_list = []
+    for batch_X, batch_y in batch:
+        x_list.append(batch_X)
+        y_list.append(batch_y)
+
+    return torch.tensor(x_list), torch.tensor(y_list)
+
+
+# train_dataset = TensorDataset(X_train, y_train)
+# validation_dataset = TensorDataset(X_validation, y_validation)
+
+train_loader = torch.utils.data.DataLoader(dataset=Dataset(X_train, y_train),
+                                           batch_size=256,
                                            shuffle=True)
-validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset,
-                                                batch_size=32,
+validation_loader = torch.utils.data.DataLoader(dataset=Dataset(X_validation, y_validation),
+                                                batch_size=256,
                                                 shuffle=False)
 print('dataloader loaded')
 
@@ -144,6 +168,8 @@ for e in range(epochs):
     running_loss = 0
     count = 0
     for fps, labels in tqdm(pbar := train_loader, ncols=75):
+        fps = fps.to(device)
+        labels = labels.to(device)
         # Training pass
         optimizer.zero_grad()  # Initialize the gradients, which will be recorded during the forward pa
 
@@ -183,12 +209,14 @@ print(torch.mean((y_test - y_pred_test) ** 2).item())
 
 
 def predict_smiles(smiles):
-    fp = mol2fp(Chem.MolFromSmiles(smiles)).reshape(1, -1)
-    fp_filtered = feature_select.transform(fp)
-    fp_tensor = torch.tensor(fp_filtered, device=device).float()
+    fp = mol2fp(smiles).reshape(1, -1)
+    # fp_filtered = feature_select.transform(fp)
+    # fp_tensor = torch.tensor(fp_filtered, device=device).float()
+    fp_tensor = torch.tensor(fp, device=device).float()
     prediction = model(fp_tensor)
     #return prediction.cpu().detach().numpy()
-    pXC50 = scaler.inverse_transform(prediction.cpu().detach().numpy())
+    # pXC50 = scaler.inverse_transform(prediction.cpu().detach().numpy())
+    pXC50 = prediction.cpu().detach().numpy()
     return pXC50[0][0]
 
 

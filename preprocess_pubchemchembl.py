@@ -20,14 +20,9 @@ print('data loaded', len(data), round(time.time() - current, 2))
 # # Activity_Flag가 'A'인 데이터만 필터링
 data = data[data['Activity_Flag'] == 'A']
 
-PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
-data[["SMILES", "Molecule"]].head(1)
-print('Molecule initialized', round(time.time() - current, 2))
-
-print('na count:', data.Molecule.isna().sum())
-data = data[data['Molecule'].notna()]
-print('total:', len(data), round(time.time() - current, 2))
-
+# PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
+# data[["SMILES", "Molecule"]].head(1)
+# print('Molecule initialized', round(time.time() - current, 2))
 morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
 
 
@@ -35,6 +30,8 @@ def mol2fp(smile):
     # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)
     # fp = AllChem.GetMorganGenerator(mol, 2, nBits=4096)
     mol = Chem.MolFromSmiles(smile)
+    if mol is None:
+        return None
     fp = morgan_gen.GetFingerprint(mol)
     ar = np.zeros((1,), dtype=np.int8)
     DataStructs.ConvertToNumpyArray(fp, ar)
@@ -48,9 +45,11 @@ def mol2fp(smile):
 
 data["FPs"] = data["SMILES"].progress_apply(mol2fp)
 
+print('na count:', data.FPs.isna().sum())
+data = data[data['FPs'].notna()]
+print('total:', len(data), round(time.time() - current, 2))
+
 X = np.stack(data.FPs.values)
 print('train data:', X.shape)
-
-
 np.save("dataset/pubchemchembl.npy", X)
-data.drop(columns=['Molecule']).to_csv('dataset/filtered_pubchemchembl.tsv', sep='\t', index=False)
+data.to_csv('dataset/filtered_pubchemchembl.tsv', sep='\t', index=False)

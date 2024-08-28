@@ -12,38 +12,39 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset
 
 
-tqdm.pandas(ncols=75)
-
-
+# tqdm.pandas(ncols=75)
+#
+#
 data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
-print(data.head(5))
-
-
-# PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
-morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-
-
-def mol2fp(smile):
-    # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)
-    # fp = AllChem.GetMorganGenerator(mol, 2, nBits=4096)
-    mol = Chem.MolFromSmiles(smile)
-    fp = morgan_gen.GetFingerprint(mol)
-    ar = np.zeros((1,), dtype=np.int8)
-    DataStructs.ConvertToNumpyArray(fp, ar)
-
-    # 메모리 최적화
-    del mol
-    del fp
-
-    return ar
-
-
-# fp = mol2fp(Chem.MolFromSmiles(data.loc[1, "SMILES"]))
-# plt.matshow(fp.reshape((64, -1)), 0)
-
-data["FPs"] = data["SMILES"].progress_apply(mol2fp)
-
-X = np.stack(data.FPs.values)
+# print(data.head(5))
+#
+#
+# # PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
+# morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+#
+#
+# def mol2fp(smile):
+#     # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)
+#     # fp = AllChem.GetMorganGenerator(mol, 2, nBits=4096)
+#     mol = Chem.MolFromSmiles(smile)
+#     fp = morgan_gen.GetFingerprint(mol)
+#     ar = np.zeros((1,), dtype=np.int8)
+#     DataStructs.ConvertToNumpyArray(fp, ar)
+#
+#     # 메모리 최적화
+#     del mol
+#     del fp
+#
+#     return ar
+#
+#
+# # fp = mol2fp(Chem.MolFromSmiles(data.loc[1, "SMILES"]))
+# # plt.matshow(fp.reshape((64, -1)), 0)
+#
+# data["FPs"] = data["SMILES"].progress_apply(mol2fp)
+#
+# X = np.stack(data.FPs.values)
+X = np.load('dataset/pubchemchembl.npy')
 print('train data:', X.shape)
 
 y = data.pXC50.values.reshape((-1, 1))

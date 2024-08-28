@@ -70,12 +70,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # If you don't have a GPU, buy a graphics card. I have for a long time used a 1060 GTX, which is not that expensive anymore.
-X_train = torch.tensor(X_train, device=device).float()
-X_test = torch.tensor(X_test, device=device).float()
-X_validation = torch.tensor(X_validation, device=device).float()
-y_train = torch.tensor(y_train, device=device).float()
-y_test = torch.tensor(y_test, device=device).float()
-y_validation = torch.tensor(y_validation, device=device).float()
+# X_train = torch.tensor(X_train, device=device).float()
+# X_test = torch.tensor(X_test, device=device).float()
+# X_validation = torch.tensor(X_validation, device=device).float()
+# y_train = torch.tensor(y_train, device=device).float()
+# y_test = torch.tensor(y_test, device=device).float()
+# y_validation = torch.tensor(y_validation, device=device).float()
 print(X_train)
 
 
@@ -191,7 +191,8 @@ for e in range(epochs):
 model.eval()  #Swith to evaluation mode, where dropout is switched off
 y_pred_train = model(X_train)
 y_pred_validation = model(X_validation)
-y_pred_test = model(X_test)
+y_pred_test = model(X_test.to(device))
+y_test = y_test.to(device)
 
 print('mean:', torch.mean((y_train - y_pred_train) ** 2).item())
 print(torch.mean((y_validation - y_pred_validation) ** 2).item())

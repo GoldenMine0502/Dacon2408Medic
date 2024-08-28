@@ -154,7 +154,7 @@ for e in range(epochs):
         running_loss += loss.item()
         count += 1
 
-        # pbar.set_description(f"loss: {round(running_loss / count, 4)}")
+        pbar.set_description(f"epoch: {e}, loss: {round(running_loss / count, 4)}")
     else:
         if e % 10 == 0:
             validation_loss = torch.mean((y_validation - model(X_validation)) ** 2).item()  # MSE

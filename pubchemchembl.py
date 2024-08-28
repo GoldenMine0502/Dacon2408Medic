@@ -3,13 +3,16 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from datasets import tqdm
+from tqdm import tqdm
 from rdkit import Chem, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset
+
+
+tqdm.pandas(ncols=75)
 
 
 data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
@@ -38,7 +41,7 @@ def mol2fp(smile):
 # fp = mol2fp(Chem.MolFromSmiles(data.loc[1, "SMILES"]))
 # plt.matshow(fp.reshape((64, -1)), 0)
 
-data["FPs"] = data["SMILES"].apply(mol2fp)
+data["FPs"] = data["SMILES"].progress_apply(mol2fp)
 
 X = np.stack(data.FPs.values)
 print('X', X.shape)
@@ -133,10 +136,10 @@ model.to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-print('training model')
 model.train()  # Ensure the network is in "train" mode with dropouts active
 epochs = 200
 for e in range(epochs):
+    print('epoch ', e)
     running_loss = 0
     count = 0
     for fps, labels in tqdm(pbar := train_loader, ncols=75):
@@ -151,7 +154,7 @@ for e in range(epochs):
         running_loss += loss.item()
         count += 1
 
-        pbar.set_description(f"loss: {round(running_loss / count, 4)}")
+        # pbar.set_description(f"loss: {round(running_loss / count, 4)}")
     else:
         if e % 10 == 0:
             validation_loss = torch.mean((y_validation - model(X_validation)) ** 2).item()

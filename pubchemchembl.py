@@ -10,30 +10,35 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset
-from rdkit.Chem import PandasTools
 
-morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2,fpSize=2048)
-# morgan_gen = rdMolDescriptors.GetMorganGenerator(radius=2, fpSize=4096)
 
 data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
-
-PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
-print(data[["SMILES", "Molecule"]].head(1))
+print(data.head(5))
 
 
-def mol2fp(mol):
+# PandasTools.AddMoleculeColumnToFrame(data, 'SMILES', 'Molecule')
+morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+
+def mol2fp(smile):
     # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)
     # fp = AllChem.GetMorganGenerator(mol, 2, nBits=4096)
+    mol = Chem.MolFromSmiles(smile)
     fp = morgan_gen.GetFingerprint(mol)
     ar = np.zeros((1,), dtype=np.int8)
     DataStructs.ConvertToNumpyArray(fp, ar)
+
+    # 메모리 최적화
+    del mol
+    del fp
+
     return ar
 
 
 # fp = mol2fp(Chem.MolFromSmiles(data.loc[1, "SMILES"]))
 # plt.matshow(fp.reshape((64, -1)), 0)
 
-data["FPs"] = data.Molecule.apply(mol2fp)
+data["FPs"] = data["SMILES"].apply(mol2fp)
 
 X = np.stack(data.FPs.values)
 print('X', X.shape)
@@ -42,7 +47,7 @@ y = data.pXC50.values.reshape((-1, 1))
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
 X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
 
-#Normalizing output using standard scaling
+# Normalizing output using standard scaling
 scaler = StandardScaler()
 y_train = scaler.fit_transform(y_train)
 y_test = scaler.transform(y_test)

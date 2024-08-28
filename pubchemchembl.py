@@ -201,7 +201,7 @@ model.to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-epochs = 0
+epochs = 200
 for e in range(epochs):
     model.train()  # Ensure the network is in "train" mode with dropouts active
     print('epoch', e)

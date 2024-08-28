@@ -150,7 +150,7 @@ class Net(nn.Module):
 
 
 # Defining the hyperparameters
-input_size = X_train.size()[-1]  # The input size should fit our fingerprint size
+input_size = 2048  # The input size should fit our fingerprint size
 hidden_size = 1024  # The size of the hidden layer
 dropout_rate = 0.80  # The dropout rate
 output_size = 1  # This is just a single task, so this will be one

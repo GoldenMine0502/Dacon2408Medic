@@ -53,16 +53,16 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random
 X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
 print('len (x train, x test, y train, y test):', len(X_train), len(X_test), len(y_train), len(y_test))
 # Normalizing output using standard scaling
-# scaler = StandardScaler()
-# y_train = scaler.fit_transform(y_train)
-# y_test = scaler.transform(y_test)
-# y_validation = scaler.transform(y_validation)
+scaler = StandardScaler()
+y_train = scaler.fit_transform(y_train)
+y_test = scaler.transform(y_test)
+y_validation = scaler.transform(y_validation)
 
 # We'll remove low variance features
-# feature_select = VarianceThreshold(threshold=0.05)
-# X_train = feature_select.fit_transform(X_train)
-# X_validation = feature_select.transform(X_validation)
-# X_test = feature_select.transform(X_test)
+feature_select = VarianceThreshold(threshold=0.05)
+X_train = feature_select.fit_transform(X_train)
+X_validation = feature_select.transform(X_validation)
+X_test = feature_select.transform(X_test)
 print('shape (fit):', X_train.shape)
 
 # Let's get those arrays transfered to the GPU memory as tensors

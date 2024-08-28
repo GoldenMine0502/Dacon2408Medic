@@ -1,4 +1,6 @@
 import time
+
+import joblib
 import numpy as np
 
 import pandas as pd
@@ -73,6 +75,8 @@ feature_select = VarianceThreshold(threshold=0.05)
 X_train = feature_select.fit_transform(X_train)
 X_validation = feature_select.transform(X_validation)
 X_test = feature_select.transform(X_test)
+
+joblib.dump(scaler, 'dataset/scaler.save')
 print('shape (fit):', X_train.shape)
 
 np.save("dataset/pubchemchembl_x_train.npy", X_train)

@@ -1,3 +1,4 @@
+import joblib
 import numpy as np
 # import matplotlib as plt
 import pandas as pd
@@ -135,11 +136,11 @@ def collate_fn(batch):
 # validation_dataset = TensorDataset(X_validation, y_validation)
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(X_train, y_train),
-                                           batch_size=1024,
+                                           batch_size=2048,
                                            shuffle=True,
                                            collate_fn=collate_fn)
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(X_validation, y_validation),
-                                                batch_size=1024,
+                                                batch_size=512,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
 test_loader = torch.utils.data.DataLoader(dataset=Dataset(X_test, y_test),
@@ -289,4 +290,27 @@ def predict_smiles(smiles):
     return pXC50[0][0]
 
 
-print(predict_smiles('Cc1ccc2c(N3CCNCC3)cc(F)cc2n1'))
+def pIC50_to_IC50(pic50_values):
+    """Convert pIC50 values to IC50 (nM)."""
+    return 10 ** (9 - pic50_values)
+
+
+scaler = joblib.load('dataset/scaler.save')
+model.eval()  # Set the model to evaluation mode
+test_predictions = []
+
+with torch.no_grad():
+    for fps, labels in test_loader:
+        fps = fps.to(device)
+        labels = labels.to(device)
+        output = model(fps)
+        pXC50 = scaler.inverse_transform(output.cpu().detach().numpy())
+        test_predictions.append(pXC50[0][0])
+
+test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
+
+test_df = pd.read_csv('test.csv')
+# print(predict_smiles('Cc1ccc2c(N3CCNCC3)cc(F)cc2n1'))
+test_df["IC50_nM"] = test_ic50_predictions
+submission_df = test_df[["ID", "IC50_nM"]]
+submission_df.to_csv("submission.csv", index=False)

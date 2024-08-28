@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset
 
-from preprocess_pubchemchembl import mol2fp
+# from preprocess_pubchemchembl import mol2fp
 
 # tqdm.pandas(ncols=75)
 #
@@ -206,6 +206,25 @@ print(torch.mean((y_test - y_pred_test) ** 2).item())
 # plt.scatter(flatten(y_pred_train), flatten(y_train), alpha=0.1, label="Train")
 # plt.legend()
 # plt.plot([-1.5, 1.5], [-1.5,1.5], c="b")
+
+morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+
+def mol2fp(smile):
+    # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)
+    # fp = AllChem.GetMorganGenerator(mol, 2, nBits=4096)
+    mol = Chem.MolFromSmiles(smile)
+    if mol is None:
+        return None
+    fp = morgan_gen.GetFingerprint(mol)
+    ar = np.zeros((1,), dtype=np.int8)
+    DataStructs.ConvertToNumpyArray(fp, ar)
+
+    # 메모리 최적화
+    del mol
+    del fp
+
+    return ar
 
 
 def predict_smiles(smiles):

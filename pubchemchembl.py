@@ -51,18 +51,18 @@ print('train data:', X.shape)
 y = data.pXC50.values.reshape((-1, 1))
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
 X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
-print('len (x train, x test, y train, y test):', len(X_train), len(X_test), len(y_train), len(y_test))
+print('len (x train, x test, y train, y test, x_vali, y_vali):', len(X_train), len(X_test), len(y_train), len(y_test), len(X_validation), len(y_validation))
 # Normalizing output using standard scaling
-scaler = StandardScaler()
-y_train = scaler.fit_transform(y_train)
-y_test = scaler.transform(y_test)
-y_validation = scaler.transform(y_validation)
+# scaler = StandardScaler()
+# y_train = scaler.fit_transform(y_train)
+# y_test = scaler.transform(y_test)
+# y_validation = scaler.transform(y_validation)
 
 # We'll remove low variance features
-feature_select = VarianceThreshold(threshold=0.05)
-X_train = feature_select.fit_transform(X_train)
-X_validation = feature_select.transform(X_validation)
-X_test = feature_select.transform(X_test)
+# feature_select = VarianceThreshold(threshold=0.05)
+# X_train = feature_select.fit_transform(X_train)
+# X_validation = feature_select.transform(X_validation)
+# X_test = feature_select.transform(X_test)
 print('shape (fit):', X_train.shape)
 
 # Let's get those arrays transfered to the GPU memory as tensors
@@ -80,15 +80,30 @@ print(X_train)
 
 
 class Dataset:
-    def __init__(self, X, y):
+    def __init__(self, X, y, train=True):
         self.X = X
         self.y = y
+        self.train = train
+        self.scaler = StandardScaler()
+        self.feature_select = VarianceThreshold(threshold=0.05)
 
     def __len__(self):
         return len(self.y)
 
     def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
+        item_x = self.X[idx]
+        if self.train:
+            item_x = self.feature_select.fit_transform(item_x)
+        else:
+            item_x = self.feature_select.transform(item_x)
+
+        item_y = self.y[idx]
+        if self.train:
+            item_y = self.scaler.fit_transform(item_y)
+        else:
+            item_y = self.scaler.transform(item_y)
+
+        return item_x, item_y
 
 
 def collate_fn(batch):
@@ -110,6 +125,10 @@ train_loader = torch.utils.data.DataLoader(dataset=Dataset(X_train, y_train),
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(X_validation, y_validation),
                                                 batch_size=256,
                                                 shuffle=False)
+test_loader = torch.utils.data.DataLoader(dataset=Dataset(X_test, y_test),
+                                          batch_size=1,
+                                          shuffle=False)
+
 print('dataloader loaded')
 
 
@@ -191,13 +210,12 @@ for e in range(epochs):
 model.eval()  #Swith to evaluation mode, where dropout is switched off
 y_pred_train = model(X_train)
 y_pred_validation = model(X_validation)
-y_pred_test = model(X_test.to(device))
-y_test = y_test.to(device)
+# y_pred_test = model(X_test.to(device))
+# y_test = y_test.to(device)
 
 print('mean:', torch.mean((y_train - y_pred_train) ** 2).item())
 print(torch.mean((y_validation - y_pred_validation) ** 2).item())
-print(torch.mean((y_test - y_pred_test) ** 2).item())
-
+# print(torch.mean((y_test - y_pred_test) ** 2).item())
 
 # def flatten(tensor):
 #     return tensor.cpu().detach().numpy().flatten()

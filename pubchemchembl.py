@@ -66,13 +66,13 @@ from torch.utils.data import TensorDataset
 # X_test = feature_select.transform(X_test)
 # print('shape (fit):', X_train.shape)
 
-X_train = np.load('dataset/x_train.npy')
-X_validation = np.load('dataset/x_vali.npy')
-X_test = np.load('dataset/x_test.npy')
+X_train = np.load('dataset/pubchemchembl_x_train.npy')
+X_validation = np.load('dataset/pubchemchembl_x_vali.npy')
+X_test = np.load('dataset/pubchemchembl_x_test.npy')
 
-y_train = np.load('dataset/y_train.npy')
-y_validation = np.load('dataset/y_vali.npy')
-y_test = np.load('dataset/y_test.npy')
+y_train = np.load('dataset/pubchemchembl_y_train.npy')
+y_validation = np.load('dataset/pubchemchembl_y_vali.npy')
+y_test = np.load('dataset/pubchemchembl_y_test.npy')
 
 # Let's get those arrays transfered to the GPU memory as tensors
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

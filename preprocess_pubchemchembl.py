@@ -7,6 +7,10 @@ from rdkit import Chem, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 from tqdm import tqdm
 
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
 tqdm.pandas(ncols=75)
 
 # Ambit_InchiKey	Original_Entry_ID	Entrez_ID	Activity_Flag	pXC50	DB	Original_Assay_ID	Tax_ID	Gene_Symbol	Ortholog_Group	InChI	SMILES
@@ -50,6 +54,31 @@ data = data[data['FPs'].notna()]
 print('total:', len(data), round(time.time() - current, 2))
 
 X = np.stack(data.FPs.values)
+y = data.pXC50.values.reshape((-1, 1))
 print('train data:', X.shape)
-np.save("dataset/pubchemchembl.npy", X)
+print('label data:', y.shape)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
+X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
+print('len (x train, x test, y train, y test, x_vali, y_vali):', len(X_train), len(X_test), len(y_train), len(y_test),
+      len(X_validation), len(y_validation))
+# Normalizing output using standard scaling
+scaler = StandardScaler()
+y_train = scaler.fit_transform(y_train)
+y_test = scaler.transform(y_test)
+y_validation = scaler.transform(y_validation)
+
+# We'll remove low variance features
+feature_select = VarianceThreshold(threshold=0.05)
+X_train = feature_select.fit_transform(X_train)
+X_validation = feature_select.transform(X_validation)
+X_test = feature_select.transform(X_test)
+print('shape (fit):', X_train.shape)
+
+np.save("dataset/pubchemchembl_x_train.npy", X_train)
+np.save("dataset/pubchemchembl_x_vali.npy", X_validation)
+np.save("dataset/pubchemchembl_x_test.npy", X_test)
+np.save("dataset/pubchemchembl_y_train.npy", y_train)
+np.save("dataset/pubchemchembl_y_vali.npy", y_validation)
+np.save("dataset/pubchemchembl_y_test.npy", y_test)
 data.to_csv('dataset/filtered_pubchemchembl.tsv', sep='\t', index=False)

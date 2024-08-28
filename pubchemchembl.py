@@ -16,7 +16,7 @@ from torch.utils.data import TensorDataset
 # tqdm.pandas(ncols=75)
 #
 #
-data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
+# data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
 # print(data.head(5))
 #
 #
@@ -45,26 +45,34 @@ data = pd.read_csv('dataset/filtered_pubchemchembl.tsv', sep='\t')
 # data["FPs"] = data["SMILES"].progress_apply(mol2fp)
 #
 # X = np.stack(data.FPs.values)
-X = np.load('dataset/pubchemchembl.npy')
-print('train data:', X.shape)
+# X = np.load('dataset/pubchemchembl.npy')
+# print('train data:', X.shape)
+#
+# y = data.pXC50.values.reshape((-1, 1))
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
+# X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
+# print('len (x train, x test, y train, y test, x_vali, y_vali):', len(X_train), len(X_test), len(y_train), len(y_test),
+#       len(X_validation), len(y_validation))
+# # Normalizing output using standard scaling
+# scaler = StandardScaler()
+# y_train = scaler.fit_transform(y_train)
+# y_test = scaler.transform(y_test)
+# y_validation = scaler.transform(y_validation)
+#
+# # We'll remove low variance features
+# feature_select = VarianceThreshold(threshold=0.05)
+# X_train = feature_select.fit_transform(X_train)
+# X_validation = feature_select.transform(X_validation)
+# X_test = feature_select.transform(X_test)
+# print('shape (fit):', X_train.shape)
 
-y = data.pXC50.values.reshape((-1, 1))
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
-X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.05, random_state=42)
-print('len (x train, x test, y train, y test, x_vali, y_vali):', len(X_train), len(X_test), len(y_train), len(y_test),
-      len(X_validation), len(y_validation))
-# Normalizing output using standard scaling
-scaler = StandardScaler()
-y_train = scaler.fit_transform(y_train)
-y_test = scaler.transform(y_test)
-y_validation = scaler.transform(y_validation)
+X_train = np.load('dataset/x_train.npy')
+X_validation = np.load('dataset/x_vali.npy')
+X_test = np.load('dataset/x_test.npy')
 
-# We'll remove low variance features
-feature_select = VarianceThreshold(threshold=0.05)
-X_train = feature_select.fit_transform(X_train)
-X_validation = feature_select.transform(X_validation)
-X_test = feature_select.transform(X_test)
-print('shape (fit):', X_train.shape)
+y_train = np.load('dataset/y_train.npy')
+y_validation = np.load('dataset/y_vali.npy')
+y_test = np.load('dataset/y_test.npy')
 
 # Let's get those arrays transfered to the GPU memory as tensors
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -190,9 +198,9 @@ model.to(device)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-model.train()  # Ensure the network is in "train" mode with dropouts active
 epochs = 200
 for e in range(epochs):
+    model.train()  # Ensure the network is in "train" mode with dropouts active
     print('epoch', e)
     running_loss = 0
     count = 0
@@ -215,9 +223,20 @@ for e in range(epochs):
         pbar.set_description(f"epoch: {e}, loss: {round(running_loss / count, 4)}")
     else:
         if e % 10 == 0:
-            validation_loss = torch.mean((y_validation - model(X_validation)) ** 2).item()  # MSE
-            print("Epoch: %3i Training loss: %0.2F Validation loss: %0.2F" % (
-                e, (running_loss / len(train_loader)), validation_loss))
+            model.eval()
+            validation_losses = []
+            for fps, labels in (pbar := tqdm(validation_loader, ncols=75)):
+                fps = fps.to(device)
+                labels = labels.to(device)
+                output = model(fps)
+
+                validation_losses.append(criterion(output, labels))
+
+            print("Epoch: %3i Training loss: %0.4F Validation loss: %0.4F" % (
+                e,
+                (running_loss / len(train_loader)),
+                sum(validation_losses) / len(validation_losses)
+            ))
 
 model.eval()  #Swith to evaluation mode, where dropout is switched off
 y_pred_train = model(X_train)

@@ -330,9 +330,9 @@ with torch.no_grad():
         # pXC50 = scaler.inverse_transform(output.cpu().detach().numpy())
         # test_predictions.append(pXC50[0][0])
 
-    test_df["IC50_nM"] = pIC50_to_IC50(np.array(results))
+    test_df["IC50_nM"] = np.array(results)
 
-# test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
+test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
 
 # test_df = pd.read_csv('test.csv')
 # print(predict_smiles('Cc1ccc2c(N3CCNCC3)cc(F)cc2n1'))

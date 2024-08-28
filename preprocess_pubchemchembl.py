@@ -13,6 +13,7 @@ import torch.nn as nn
 import numpy as np
 # import matplotlib as plt
 import pandas as pd
+from datasets import tqdm
 
 # Ambit_InchiKey	Original_Entry_ID	Entrez_ID	Activity_Flag	pXC50	DB	Original_Assay_ID	Tax_ID	Gene_Symbol	Ortholog_Group	InChI	SMILES
 # AAAAZQPHATYWOK-YRBRRWAQNA-N	11399331	2064	A	7.19382	pubchem	248914	9606	ERBB2	1346	InChI=1/C32H29ClN6O3S/c1-4-41-28-16-25-22(15-26(28)37-30(40)10-7-13-39(2)3)32(20(17-34)18-35-25)36-21-11-12-27(23(33)14-21)42-19-31-38-24-8-5-6-9-29(24)43-31/h5-12,14-16,18H,4,13,19H2,1-3H3,(H,35,36)(H,37,40)/b10-7+/f/h36-37H	ClC=1C=C(NC=2C=3C(N=CC2C#N)=CC(OCC)=C(NC(=O)/C=C/CN(C)C)C3)C=CC1OCC=4SC=5C(N4)=CC=CC5
@@ -155,7 +156,8 @@ model.train()  # Ensure the network is in "train" mode with dropouts active
 epochs = 200
 for e in range(epochs):
     running_loss = 0
-    for fps, labels in train_loader:
+    count = 0
+    for fps, labels in tqdm(pbar := train_loader, ncols=75):
         # Training pass
         optimizer.zero_grad()  # Initialize the gradients, which will be recorded during the forward pa
 
@@ -165,6 +167,9 @@ for e in range(epochs):
         optimizer.step()  # Optimize the weights
 
         running_loss += loss.item()
+        count += 1
+
+        pbar.set_description(f"loss: {round(running_loss / count, 4)}")
     else:
         if e % 10 == 0:
             validation_loss = torch.mean((y_validation - model(X_validation)) ** 2).item()

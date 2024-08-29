@@ -236,7 +236,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
 
                     abs_error_pic50 = np.abs(prediction.cpu().detach().numpy() - labels.cpu().detach().numpy())
                     errors = np.concatenate((errors, abs_error_pic50))
-                    mses = np.concatenate((mses, loss.cpu().detach().numpy()))
+                    mses = np.concatenate((mses, abs_error_pic50 ** 2))
                     predictions = np.concatenate((predictions, prediction.cpu().detach().numpy()))
             avg_val_loss = total_val_loss / len(validation_loader)
 

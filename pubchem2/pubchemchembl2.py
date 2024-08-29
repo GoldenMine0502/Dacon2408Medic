@@ -86,14 +86,17 @@ class Dataset:
         self.y = label
         self.train = train
 
+        self.token = list(map(lambda x: tokenize(x), X))
+
     def __len__(self):
         return len(self.y)
 
     def __getitem__(self, idx):
         item_x = self.X[idx]
         item_y = self.y[idx]
+        token = self.token[idx]
 
-        return item_x, item_y
+        return item_x, item_y, token
 
 
 validation_index = int((1 - VALIDATION_SPLIT) * len(data))
@@ -108,13 +111,15 @@ validation_labels = data['pXC50'][validation_index:].values
 def collate_fn(batch):
     x_list = []
     y_list = []
-    for batch_X, batch_y in batch:
+    tokens = []
+    for batch_X, batch_y, token in batch:
         x_list.append(batch_X)
         y_list.append(batch_y)
+        tokens.append(token)
 
-    token = tokenizer(x_list, return_tensors='pt', padding=True)
+    # token = tokenizer(x_list, return_tensors='pt', padding=True)
 
-    return x_list, torch.tensor(y_list, dtype=torch.float32), token
+    return x_list, torch.tensor(y_list, dtype=torch.float32), tokens
 
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),

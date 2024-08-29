@@ -145,7 +145,7 @@ def collate_fn(batch):
         y_list.append(batch_y)
         token_list.append(token)
 
-    return x_list, torch.tensor(y_list, dtype=torch.float32), torch.stack(token_list)
+    return x_list, torch.tensor(y_list, dtype=torch.float32), token
 
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
@@ -259,7 +259,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
         scheduler.step()
 
 
-train_and_validate(train_loader, validation_loader, pretrain_optimizer, pretrain_scheduler)
+train_and_validate(train_loader, validation_loader, pretrain_optimizer, pretrain_scheduler, 5)
 
 # finetune
 finetune_data = pd.read_csv(FINETUNE_PATH)  # 예시 파일 이름
@@ -278,7 +278,7 @@ finetune_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE_FINE
 finetune_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 
-train_and_validate(train_loader, None, finetune_optimizer, finetune_scheduler)  # validation 데이터가 딱히 없어서
+train_and_validate(train_loader, None, finetune_optimizer, finetune_scheduler, 40)  # validation 데이터가 딱히 없어서
 
 # inference
 test_data = pd.read_csv(TEST_PATH)

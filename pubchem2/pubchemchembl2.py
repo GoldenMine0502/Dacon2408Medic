@@ -124,12 +124,12 @@ def collate_fn(batch):
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
-                                           num_workers=6,
+                                           # num_workers=6,
                                            shuffle=True,
                                            collate_fn=collate_fn)
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smiles, validation_labels),
                                                 batch_size=BATCH_SIZE,
-                                                num_workers=6,
+                                                # num_workers=6,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
 print('data:', len(train_loader), len(validation_loader))

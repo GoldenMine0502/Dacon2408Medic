@@ -27,7 +27,7 @@ VALIDATION_SPLIT = 0.05
 # MODEL_MAX_LEN = 256
 BATCH_SIZE = 128
 EPOCHS = 30
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 5e-6
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('device:', DEVICE)

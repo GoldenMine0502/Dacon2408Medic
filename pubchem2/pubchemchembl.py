@@ -14,6 +14,7 @@ PRETRAIN_PATH = '../dataset/pubchem.chembl.dataset4publication_inchi_smiles.tsv'
 PRETRAIN_FILTERED_PATH = '../dataset/filtered_pubchemchembl.tsv'
 
 if not os.path.exists(PRETRAIN_FILTERED_PATH):
+    print('caching data...')
     data = pd.read_csv(PRETRAIN_PATH, sep='\t')
     print('data loaded', len(data))
 

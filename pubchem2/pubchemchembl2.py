@@ -18,9 +18,21 @@ tqdm.pandas(ncols=75)
 os.makedirs('chkpt', exist_ok=True)
 os.makedirs('dataset', exist_ok=True)
 
-# 데이터 로드
 PRETRAIN_PATH = '../dataset/pubchem.chembl.dataset4publication_inchi_smiles.tsv'
 PRETRAIN_FILTERED_PATH = '../dataset/filtered_pubchemchembl.tsv'
+FINETUNE_PATH = '../dataset/train.csv'
+TEST_PATH = '../dataset/test.csv'
+VALIDATION_SPLIT = 0.05
+
+BATCH_SIZE = 128
+EPOCHS = 30
+LEARNING_RATE = 5e-4
+MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print('device:', DEVICE)
+
+
+# 데이터 로드
 
 if not os.path.exists(PRETRAIN_FILTERED_PATH):
     print('caching data...')
@@ -82,7 +94,6 @@ class Dataset:
         return item_x, item_y
 
 
-VALIDATION_SPLIT = 0.05
 validation_index = int((1 - VALIDATION_SPLIT) * len(data))
 print('validation index, count:', validation_index, len(data))
 
@@ -104,7 +115,6 @@ def collate_fn(batch):
     return x_list, torch.tensor(y_list, dtype=torch.float32), token
 
 
-BATCH_SIZE = 128
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
                                            num_workers=4,
@@ -118,11 +128,6 @@ validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smile
 print('data:', len(train_loader), len(validation_loader))
 
 # 모델 로드
-LEARNING_RATE = 5e-4
-MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('device:', DEVICE)
-
 model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
 model = RobertaForSequenceClassification(model.config)  # pretrain 안쓰고 학습
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
@@ -134,10 +139,8 @@ criterion = nn.MSELoss()
 pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
+
 # pretrain
-EPOCHS = 30
-
-
 def tokenize(string):
     """
     Tokenize and encode a string using the provided tokenizer.
@@ -193,6 +196,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             # Validation loop
             model.eval()
             total_val_loss = 0
+            errors = np.zeros(0)
             with torch.no_grad():
                 for smiles, labels, token in tqdm(validation_loader, ncols=75):
                     input_ids = token['input_ids'].to(DEVICE)
@@ -201,11 +205,15 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
 
                     output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     predictions = output_dict.logits.squeeze(dim=1)
+
+                    abs_error_pic50 = np.abs(predictions - labels)
+                    errors = np.concatenate((errors, abs_error_pic50))
+
                     loss = criterion(predictions, labels)
                     total_val_loss += loss.item()
             avg_val_loss = total_val_loss / len(validation_loader)
 
-            print(f"Epoch {epoch}: Val Loss {avg_val_loss:.4f}")
+            print(f"Epoch {epoch}: Val Loss {avg_val_loss:.4f} accuracy: {np.mean(abs_error_pic50 <= 0.5).item() * 100:.2f}%")
 
         # Step the scheduler
         scheduler.step()
@@ -214,7 +222,6 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
 train_and_validate(train_loader, validation_loader, pretrain_optimizer, pretrain_scheduler)
 
 # finetune
-FINETUNE_PATH = '../dataset/train.csv'
 finetune_data = pd.read_csv(FINETUNE_PATH)  # 예시 파일 이름
 print(f'Number of finetune data is: {len(finetune_data)}')
 
@@ -234,7 +241,6 @@ finetune_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma
 train_and_validate(train_loader, None, finetune_optimizer, finetune_scheduler)  # validation 데이터가 딱히 없어서
 
 # inference
-TEST_PATH = '../dataset/test.csv'
 test_data = pd.read_csv(TEST_PATH)
 
 finetune_test_smiles = finetune_data['Smiles']

@@ -172,6 +172,20 @@ def tokenize(string):
     return input_ids, attention_mask
 
 
+class RMSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.mse = nn.MSELoss()
+
+    def forward(self, yhat, y):
+        return torch.sqrt(self.mse(yhat, y))
+
+
+def IC50_to_pIC50(ic50_values):
+    """Convert IC50 values (nM) to pIC50."""
+    return 9 - (np.log10(ic50_values))
+
+
 def train_and_validate(train_loader, validation_loader, optimizer, scheduler, epochs=EPOCHS):
     for epoch in range(1, epochs + 1):
         if train_loader is not None:
@@ -186,8 +200,8 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                 labels = labels.to(DEVICE)
 
                 output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
-                predictions = output_dict.logits.squeeze(dim=1)
-                loss = criterion(predictions, labels)
+                prediction = output_dict.logits.squeeze(dim=1)
+                loss = criterion(prediction, labels)
                 loss.backward()
                 optimizer.step()
                 total_train_loss += loss.item()
@@ -205,6 +219,8 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             model.eval()
             total_val_loss = 0
             errors = np.zeros(0)
+            mses = np.zeros(0)
+            predictions = np.zeros(0)
             with torch.no_grad():
                 for smiles, labels, token in tqdm(validation_loader, ncols=75):
                     input_ids = token['input_ids'].to(DEVICE)
@@ -212,16 +228,21 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                     labels = labels.to(DEVICE)
 
                     output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                    predictions = output_dict.logits.squeeze(dim=1)
+                    prediction = output_dict.logits.squeeze(dim=1)
+
+                    loss = criterion(prediction, labels)
+                    total_val_loss += loss.item()
 
                     abs_error_pic50 = np.abs(predictions.cpu().detach().numpy() - labels.cpu().detach().numpy())
                     errors = np.concatenate((errors, abs_error_pic50))
-
-                    loss = criterion(predictions, labels)
-                    total_val_loss += loss.item()
+                    mses = np.concatenate((mses, loss.cpu().detach().numpy()))
+                    predictions = np.concatenate((predictions, prediction.cpu().detach().numpy()))
             avg_val_loss = total_val_loss / len(validation_loader)
 
-            print(f"Epoch {epoch}: Val Loss {avg_val_loss:.4f} accuracy: {np.mean(abs_error_pic50 <= 0.5).item() * 100:.2f}%")
+            A = np.mean(np.sqrt(mses) / (np.max(predictions) - np.min(predictions))).item()
+            B = np.mean(abs_error_pic50 <= 0.5).item()
+
+            print(f"Epoch {epoch}: Val Loss {avg_val_loss:.4f} accuracy: {A:.2f} {B:.2f} {(0.5 * (1 - min(A, 1))) + 0.5 * B}")
 
         # Step the scheduler
         scheduler.step()
@@ -268,8 +289,8 @@ with torch.no_grad():
         attention_mask = token['attention_mask'].to(DEVICE)
 
         output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
-        predictions = output_dict.logits.squeeze(dim=1)
-        test_predictions.extend(predictions.tolist())
+        prediction = output_dict.logits.squeeze(dim=1)
+        test_predictions.extend(prediction.tolist())
 
 
 def pIC50_to_IC50(pic50_values):

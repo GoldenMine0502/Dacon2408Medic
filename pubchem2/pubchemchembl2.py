@@ -111,6 +111,7 @@ validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smile
 # 모델 로드
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print('device:', DEVICE)
 
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
@@ -150,28 +151,28 @@ def tokenize(string):
 
 def train_and_validate(train_loader, validation_loader, optimizer, scheduler, epochs=EPOCHS):
     for epoch in tqdm(range(1, epochs + 1)):
-        if train_loader is not None:
-            model.train()
-            total_train_loss = 0
-            count = 0
-            for (smiles, labels) in (pbar := tqdm(train_loader)):
-                optimizer.zero_grad(set_to_none=True)
+        model.train()
+        total_train_loss = 0
+        count = 0
+        for (smiles, labels) in (pbar := tqdm(train_loader)):
+            optimizer.zero_grad(set_to_none=True)
 
-                inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
-                input_ids = inputs['input_ids'].to(DEVICE)
-                attention_mask = inputs['attention_mask'].to(DEVICE)
+            inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
+            input_ids = inputs['input_ids'].to(DEVICE)
+            attention_mask = inputs['attention_mask'].to(DEVICE)
+            labels = labels.to(DEVICE)
 
-                output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                predictions = output_dict.logits.squeeze(dim=1)
-                loss = criterion(predictions, labels)
-                loss.backward()
-                optimizer.step()
-                total_train_loss += loss.item()
-                count += 1
+            output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
+            predictions = output_dict.logits.squeeze(dim=1)
+            loss = criterion(predictions, labels)
+            loss.backward()
+            optimizer.step()
+            total_train_loss += loss.item()
+            count += 1
 
-                pbar.set_description(f'epoch: {epoch}, loss: {total_train_loss / count}')
-            avg_train_loss = total_train_loss / count
-            print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
+            pbar.set_description(f'epoch: {epoch}, loss: {total_train_loss / count}')
+        avg_train_loss = total_train_loss / count
+        print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
 
         if validation_loader is not None:
             # Validation loop
@@ -182,6 +183,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                     inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
                     input_ids = inputs['input_ids'].to(DEVICE)
                     attention_mask = inputs['attention_mask'].to(DEVICE)
+                    labels = labels.to(DEVICE)
 
                     output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     predictions = output_dict.logits.squeeze(dim=1)

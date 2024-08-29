@@ -102,7 +102,7 @@ def collate_fn(batch):
     return x_list, torch.tensor(y_list, dtype=torch.float32)
 
 
-BATCH_SIZE = 128
+BATCH_SIZE = 140
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
                                            shuffle=True,
@@ -122,6 +122,7 @@ model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=
 model = RobertaForSequenceClassification(model.config)  # pretrain 안쓰고 학습
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 model.to(DEVICE)
+tokenizer.to(DEVICE)
 
 max_length = tokenizer.model_max_length
 print('max length:', max_length)
@@ -165,9 +166,9 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             for (smiles, labels) in (pbar := tqdm(train_loader, ncols=75)):
                 optimizer.zero_grad(set_to_none=True)
 
-                inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
-                input_ids = inputs['input_ids'].to(DEVICE)
-                attention_mask = inputs['attention_mask'].to(DEVICE)
+                inputs = tokenizer(smiles, return_tensors='pt', padding=True)
+                input_ids = inputs['input_ids']
+                attention_mask = inputs['attention_mask']
                 labels = labels.to(DEVICE)
 
                 output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
@@ -191,9 +192,9 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             total_val_loss = 0
             with torch.no_grad():
                 for (smiles, labels) in tqdm(validation_loader, ncols=75):
-                    inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
-                    input_ids = inputs['input_ids'].to(DEVICE)
-                    attention_mask = inputs['attention_mask'].to(DEVICE)
+                    inputs = tokenizer(smiles, return_tensors='pt', padding=True)
+                    input_ids = inputs['input_ids']
+                    attention_mask = inputs['attention_mask']
                     labels = labels.to(DEVICE)
 
                     output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)

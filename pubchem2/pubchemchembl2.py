@@ -8,7 +8,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 from rdkit import Chem, DataStructs
 from torch.utils.data import TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, RobertaForSequenceClassification, \
-    RobertaModel
+    RobertaModel, RobertaTokenizer
 from tqdm import tqdm
 from rdkit.Chem import rdFingerprintGenerator
 
@@ -119,7 +119,7 @@ print('device:', DEVICE)
 
 model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
 model = RobertaForSequenceClassification(model.config)  # pretrain 안쓰고 학습
-tokenizer = RobertaModel.from_pretrained(MODEL_NAME)
+tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 model.to(DEVICE)
 
 max_length = tokenizer.model_max_length
@@ -129,7 +129,7 @@ pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 # pretrain
-EPOCHS = 0
+EPOCHS = 1
 
 
 def tokenize(string):
@@ -230,7 +230,7 @@ train_and_validate(train_loader, None, finetune_optimizer, finetune_scheduler)  
 TEST_PATH = '../dataset/test.csv'
 test_data = pd.read_csv(TEST_PATH)
 
-finetune_test_smiles = finetune_data['SMILES']
+finetune_test_smiles = finetune_data['Smiles']
 finetune_test_labels = np.zeros(len(test_data), dtype=float)
 
 test_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_test_smiles, finetune_test_labels),

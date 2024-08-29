@@ -129,7 +129,7 @@ pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 # pretrain
-EPOCHS = 1
+EPOCHS = 0
 
 
 def tokenize(string):

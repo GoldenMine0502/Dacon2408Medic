@@ -5,9 +5,15 @@ import torch
 import torch.nn as nn
 
 import torch.optim.lr_scheduler as lr_scheduler
+from rdkit import Chem, DataStructs
 from torch.utils.data import TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
+from rdkit.Chem import rdFingerprintGenerator
+
+# 초기 설정
+tqdm.pandas(ncols=75)
+
 
 # 데이터 로드
 PRETRAIN_PATH = '../dataset/pubchem.chembl.dataset4publication_inchi_smiles.tsv'
@@ -22,10 +28,38 @@ if not os.path.exists(PRETRAIN_FILTERED_PATH):
     data = data[data['Activity_Flag'] == 'A']
     print('filtered data count:', len(data))
 
+    # 잘못된 smile 데이터 제거 (smile에서 fingerprint 생성 불가 쳐냄)
+    morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+
+    def mol2fp(smile):
+        # fp = AllChem.GetHashedMorganFingerprint(mol, 2, nBits=4096)
+        # fp = AllChem.GetMorganGenerator(mol, 2, nBits=4096)
+        mol = Chem.MolFromSmiles(smile)
+        if mol is None:
+            return None
+        fp = morgan_gen.GetFingerprint(mol)
+        ar = np.zeros((1,), dtype=np.int8)
+        DataStructs.ConvertToNumpyArray(fp, ar)
+
+        # 메모리 최적화
+        del mol
+        del fp
+
+        return ar
+
+
+    data["FPs"] = data["SMILES"].progress_apply(mol2fp)
+
+    print('na count:', data.FPs.isna().sum())
+    data = data[data['FPs'].notna()]
+    print('final count:', len(data))
+
     data.to_csv(PRETRAIN_FILTERED_PATH, sep='\t', index=False)
 else:
     # 미리 필터링된 파일 읽기 (읽는 속도 최적화)
     data = pd.read_csv(PRETRAIN_FILTERED_PATH, sep='\t')
+    print('loaded cached data')
 
 
 # 데이터셋 정의
@@ -84,8 +118,8 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 max_length = tokenizer.model_max_length
 print('max length:', max_length)
 criterion = nn.MSELoss()
-optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
+pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 # pretrain
 EPOCHS = 1
@@ -114,7 +148,7 @@ def tokenize(string):
     return input_ids, attention_mask
 
 
-def train_and_validate(train_loader, validation_loader, epochs=EPOCHS):
+def train_and_validate(train_loader, validation_loader, optimizer, scheduler, epochs=EPOCHS):
     for epoch in tqdm(range(1, epochs + 1)):
         if train_loader is not None:
             model.train()

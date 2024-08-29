@@ -102,7 +102,7 @@ def collate_fn(batch):
     return x_list, torch.tensor(y_list, dtype=torch.float32)
 
 
-BATCH_SIZE = 160
+BATCH_SIZE = 128
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
                                            shuffle=True,

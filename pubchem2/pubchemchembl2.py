@@ -179,7 +179,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
 
                 pbar.set_description(f'epoch: {epoch}, loss: {round(total_train_loss / count, 4)}')
             avg_train_loss = total_train_loss / count
-            print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
+            print(f"Epoch {epoch}: Train Loss {avg_train_loss:.4f}")
 
         if validation_loader is not None:
             # Validation loop
@@ -198,7 +198,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                     total_val_loss += loss.item()
             avg_val_loss = total_val_loss / len(validation_loader)
 
-            print(f"Epoch {epoch + 1}: Val Loss {avg_val_loss:.4f}")
+            print(f"Epoch {epoch}: Val Loss {avg_val_loss:.4f}")
 
         # Step the scheduler
         scheduler.step()

@@ -27,7 +27,7 @@ VALIDATION_SPLIT = 0.05
 # MODEL_MAX_LEN = 256
 BATCH_SIZE = 128
 EPOCHS = 30
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 5e-5
 LEARNING_RATE_FINETUNE = 1e-3
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -86,7 +86,7 @@ class Dataset:
         self.y = label
         self.train = train
 
-        self.token = list(tqdm(map(lambda x: tokenize(x), self.X)))
+        self.token = list(map(lambda x: tokenize(x), X))
 
     def __len__(self):
         return len(self.y)
@@ -108,9 +108,50 @@ validation_smiles = data['SMILES'][validation_index:].values
 validation_labels = data['pXC50'][validation_index:].values
 
 
+def collate_fn(batch):
+    x_list = []
+    y_list = []
+    for batch_X, batch_y in batch:
+        x_list.append(batch_X)
+        y_list.append(batch_y)
+
+
+    return x_list, torch.tensor(y_list, dtype=torch.float32), token
+
+
+train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
+                                           batch_size=BATCH_SIZE,
+                                           num_workers=4,
+                                           shuffle=True,
+                                           collate_fn=collate_fn)
+validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smiles, validation_labels),
+                                                batch_size=BATCH_SIZE,
+                                                num_workers=4,
+                                                shuffle=False,
+                                                collate_fn=collate_fn)
+print('data:', len(train_loader), len(validation_loader))
+
+# 모델 로드
+pretrained_model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
+
+# max_length = pretrained_model.config.max_position_embeddings
+# print('max length:', max_length)
+# pretrained_model.config.max_position_embeddings = MODEL_MAX_LEN
+# print('max length set to:', MODEL_MAX_LEN)
+
+model = RobertaForSequenceClassification(pretrained_model.config)  # pretrain 안쓰고 학습
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 max_length = tokenizer.model_max_length
+model.to(DEVICE)
 
+del pretrained_model
+
+criterion = nn.MSELoss()
+pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
+
+
+# pretrain
 def tokenize(string):
     """
     Tokenize and encode a string using the provided tokenizer.
@@ -134,53 +175,6 @@ def tokenize(string):
     return input_ids, attention_mask
 
 
-def collate_fn(batch):
-    x_list = []
-    y_list = []
-    tokens = []
-    for batch_X, batch_y, token in batch:
-        x_list.append(batch_X)
-        y_list.append(batch_y)
-        tokens.append(token)
-
-    # token = tokenizer(x_list, return_tensors='pt', padding=True)
-
-    return x_list, torch.tensor(y_list, dtype=torch.float32), tokens
-
-
-train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
-                                           batch_size=BATCH_SIZE,
-                                           # num_workers=6,
-                                           shuffle=True,
-                                           collate_fn=collate_fn)
-validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smiles, validation_labels),
-                                                batch_size=BATCH_SIZE,
-                                                # num_workers=6,
-                                                shuffle=False,
-                                                collate_fn=collate_fn)
-print('data:', len(train_loader), len(validation_loader))
-
-# 모델 로드
-pretrained_model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
-
-# max_length = pretrained_model.config.max_position_embeddings
-# print('max length:', max_length)
-# pretrained_model.config.max_position_embeddings = MODEL_MAX_LEN
-# print('max length set to:', MODEL_MAX_LEN)
-
-model = RobertaForSequenceClassification(pretrained_model.config)  # pretrain 안쓰고 학습
-model.to(DEVICE)
-
-del pretrained_model
-
-criterion = nn.MSELoss()
-pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
-
-
-# pretrain
-
-
 class RMSELoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -201,9 +195,10 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             model.train()
             total_train_loss = 0
             count = 0
-            for smiles, labels, token in (pbar := tqdm(train_loader, ncols=75)):
+            for smiles, labels in (pbar := tqdm(train_loader, ncols=75)):
                 optimizer.zero_grad(set_to_none=True)
 
+                token = tokenizer(smiles, return_tensors='pt', padding=True)
                 input_ids = token['input_ids'].to(DEVICE)
                 attention_mask = token['attention_mask'].to(DEVICE)
                 labels = labels.to(DEVICE)
@@ -231,7 +226,8 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             mses = np.zeros(0)
             predictions = np.zeros(0)
             with torch.no_grad():
-                for smiles, labels, token in tqdm(validation_loader, ncols=75):
+                for smiles, labels in tqdm(validation_loader, ncols=75):
+                    token = tokenizer(smiles, return_tensors='pt', padding=True)
                     input_ids = token['input_ids'].to(DEVICE)
                     attention_mask = token['attention_mask'].to(DEVICE)
                     labels = labels.to(DEVICE)
@@ -293,7 +289,8 @@ model.eval()  # Set the model to evaluation mode
 test_predictions = []
 
 with torch.no_grad():
-    for smiles, _, token in test_loader:
+    for smiles, _ in test_loader:
+        token = tokenizer(smiles, return_tensors='pt', padding=True)
         input_ids = token['input_ids'].to(DEVICE)
         attention_mask = token['attention_mask'].to(DEVICE)
 

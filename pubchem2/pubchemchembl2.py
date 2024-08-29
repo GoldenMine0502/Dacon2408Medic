@@ -249,7 +249,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
         scheduler.step()
 
 
-train_and_validate(None, validation_loader, pretrain_optimizer, pretrain_scheduler)
+train_and_validate(train_loader, validation_loader, pretrain_optimizer, pretrain_scheduler)
 
 # finetune
 finetune_data = pd.read_csv(FINETUNE_PATH)  # 예시 파일 이름

@@ -118,6 +118,7 @@ validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smile
 print('data:', len(train_loader), len(validation_loader))
 
 # 모델 로드
+LEARNING_RATE = 5e-4
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('device:', DEVICE)
@@ -130,7 +131,7 @@ model.to(DEVICE)
 max_length = tokenizer.model_max_length
 print('max length:', max_length)
 criterion = nn.MSELoss()
-pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 # pretrain
@@ -226,7 +227,7 @@ train_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_train_smiles
                                            collate_fn=collate_fn)
 
 
-finetune_optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)  # 기존 5e-5 -> 1e-5
+finetune_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE / 5)  # 기존 5e-5 -> 1e-5
 finetune_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 

@@ -86,7 +86,7 @@ class Dataset:
         self.y = label
         self.train = train
 
-        # self.token = list(map(lambda x: tokenize(x), self.X))
+        self.token = list(map(lambda x: tokenize(x), self.X))
 
     def __len__(self):
         return len(self.y)
@@ -94,9 +94,9 @@ class Dataset:
     def __getitem__(self, idx):
         item_x = self.X[idx]
         item_y = self.y[idx]
-        # token = self.token[idx]
+        token = self.token[idx]
 
-        return item_x, item_y
+        return item_x, item_y, token
 
 
 validation_index = int((1 - VALIDATION_SPLIT) * len(data))
@@ -111,11 +111,13 @@ validation_labels = data['pXC50'][validation_index:].values
 def collate_fn(batch):
     x_list = []
     y_list = []
-    for batch_X, batch_y in batch:
+    token_list = []
+    for batch_X, batch_y, token in batch:
         x_list.append(batch_X)
         y_list.append(batch_y)
+        token_list.append(token)
 
-    return x_list, torch.tensor(y_list, dtype=torch.float32)
+    return x_list, torch.tensor(y_list, dtype=torch.float32), torch.stack(token_list)
 
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
@@ -194,10 +196,10 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             model.train()
             total_train_loss = 0
             count = 0
-            for smiles, labels in (pbar := tqdm(train_loader, ncols=75)):
+            for smiles, labels, token in (pbar := tqdm(train_loader, ncols=75)):
                 optimizer.zero_grad(set_to_none=True)
 
-                token = tokenizer(smiles, return_tensors='pt', padding=True)
+                # token = tokenizer(smiles, return_tensors='pt', padding=True)
                 input_ids = token['input_ids'].to(DEVICE)
                 attention_mask = token['attention_mask'].to(DEVICE)
                 labels = labels.to(DEVICE)
@@ -225,8 +227,8 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             mses = np.zeros(0)
             predictions = np.zeros(0)
             with torch.no_grad():
-                for smiles, labels in tqdm(validation_loader, ncols=75):
-                    token = tokenizer(smiles, return_tensors='pt', padding=True)
+                for smiles, labels, token in tqdm(validation_loader, ncols=75):
+                    # token = tokenizer(smiles, return_tensors='pt', padding=True)
                     input_ids = token['input_ids'].to(DEVICE)
                     attention_mask = token['attention_mask'].to(DEVICE)
                     labels = labels.to(DEVICE)
@@ -288,8 +290,8 @@ model.eval()  # Set the model to evaluation mode
 test_predictions = []
 
 with torch.no_grad():
-    for smiles, _ in test_loader:
-        token = tokenizer(smiles, return_tensors='pt', padding=True)
+    for smiles, _, token in test_loader:
+        # token = tokenizer(smiles, return_tensors='pt', padding=True)
         input_ids = token['input_ids'].to(DEVICE)
         attention_mask = token['attention_mask'].to(DEVICE)
 

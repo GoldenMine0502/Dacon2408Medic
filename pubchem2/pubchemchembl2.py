@@ -24,7 +24,7 @@ FINETUNE_PATH = '../dataset/train.csv'
 TEST_PATH = '../dataset/test.csv'
 VALIDATION_SPLIT = 0.05
 
-MODEL_MAX_LEN = 256
+# MODEL_MAX_LEN = 256
 BATCH_SIZE = 128
 EPOCHS = 30
 LEARNING_RATE = 1e-5
@@ -118,12 +118,12 @@ def collate_fn(batch):
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
-                                           num_workers=4,
+                                           num_workers=6,
                                            shuffle=True,
                                            collate_fn=collate_fn)
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smiles, validation_labels),
                                                 batch_size=BATCH_SIZE,
-                                                num_workers=4,
+                                                num_workers=6,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
 print('data:', len(train_loader), len(validation_loader))
@@ -131,10 +131,10 @@ print('data:', len(train_loader), len(validation_loader))
 # 모델 로드
 pretrained_model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
 
-max_length = pretrained_model.config.max_position_embeddings
-print('max length:', max_length)
-pretrained_model.config.max_position_embeddings = MODEL_MAX_LEN
-print('max length set to:', MODEL_MAX_LEN)
+# max_length = pretrained_model.config.max_position_embeddings
+# print('max length:', max_length)
+# pretrained_model.config.max_position_embeddings = MODEL_MAX_LEN
+# print('max length set to:', MODEL_MAX_LEN)
 
 model = RobertaForSequenceClassification(pretrained_model.config)  # pretrain 안쓰고 학습
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)

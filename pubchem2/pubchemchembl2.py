@@ -12,6 +12,7 @@ from tqdm import tqdm
 from rdkit.Chem import rdFingerprintGenerator
 
 # 초기 설정
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 tqdm.pandas(ncols=75)
 
 
@@ -115,6 +116,7 @@ print('device:', DEVICE)
 
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model.to(DEVICE)
 
 max_length = tokenizer.model_max_length
 print('max length:', max_length)

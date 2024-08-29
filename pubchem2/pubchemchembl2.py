@@ -82,11 +82,12 @@ class Dataset:
 
 VALIDATION_SPLIT = 0.05
 validation_index = int((1 - VALIDATION_SPLIT) * len(data))
+print('validation index, count:', validation_index, len(data))
 
-train_smiles = data['SMILES'][:validation_index]
-train_labels = data['pXC50'][:validation_index]
-validation_smiles = data['SMILES'][validation_index:]
-validation_labels = data['pXC50'][validation_index:]
+train_smiles = data['SMILES'][:validation_index].values
+train_labels = data['pXC50'][:validation_index].values
+validation_smiles = data['SMILES'][validation_index:].values
+validation_labels = data['pXC50'][validation_index:].values
 
 
 def collate_fn(batch):
@@ -108,6 +109,7 @@ validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smile
                                                 batch_size=BATCH_SIZE,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
+print('data: ', len(train_loader), len(validation_loader))
 
 # 모델 로드
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
@@ -152,36 +154,37 @@ def tokenize(string):
 
 
 def train_and_validate(train_loader, validation_loader, optimizer, scheduler, epochs=EPOCHS):
-    for epoch in tqdm(range(1, epochs + 1)):
-        model.train()
-        total_train_loss = 0
-        count = 0
-        for (smiles, labels) in (pbar := tqdm(train_loader)):
-            optimizer.zero_grad(set_to_none=True)
+    for epoch in range(1, epochs + 1):
+        if train_loader is not None:
+            model.train()
+            total_train_loss = 0
+            count = 0
+            for (smiles, labels) in (pbar := tqdm(train_loader, ncols=75)):
+                optimizer.zero_grad(set_to_none=True)
 
-            inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
-            input_ids = inputs['input_ids'].to(DEVICE)
-            attention_mask = inputs['attention_mask'].to(DEVICE)
-            labels = labels.to(DEVICE)
+                inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
+                input_ids = inputs['input_ids'].to(DEVICE)
+                attention_mask = inputs['attention_mask'].to(DEVICE)
+                labels = labels.to(DEVICE)
 
-            output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
-            predictions = output_dict.logits.squeeze(dim=1)
-            loss = criterion(predictions, labels)
-            loss.backward()
-            optimizer.step()
-            total_train_loss += loss.item()
-            count += 1
+                output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
+                predictions = output_dict.logits.squeeze(dim=1)
+                loss = criterion(predictions, labels)
+                loss.backward()
+                optimizer.step()
+                total_train_loss += loss.item()
+                count += 1
 
-            pbar.set_description(f'epoch: {epoch}, loss: {round(total_train_loss / count, 4)}')
-        avg_train_loss = total_train_loss / count
-        print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
+                pbar.set_description(f'epoch: {epoch}, loss: {round(total_train_loss / count, 4)}')
+            avg_train_loss = total_train_loss / count
+            print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
 
         if validation_loader is not None:
             # Validation loop
             model.eval()
             total_val_loss = 0
             with torch.no_grad():
-                for (smiles, labels) in validation_loader:
+                for (smiles, labels) in tqdm(validation_loader, ncols=75):
                     inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
                     input_ids = inputs['input_ids'].to(DEVICE)
                     attention_mask = inputs['attention_mask'].to(DEVICE)
@@ -199,7 +202,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
         scheduler.step()
 
 
-train_and_validate(train_loader, validation_loader, pretrain_optimizer, pretrain_scheduler)
+train_and_validate(None, validation_loader, pretrain_optimizer, pretrain_scheduler)
 
 # finetune
 FINETUNE_PATH = '../dataset/train.csv'

@@ -211,7 +211,7 @@ FINETUNE_PATH = '../dataset/train.csv'
 finetune_data = pd.read_csv(FINETUNE_PATH)  # 예시 파일 이름
 print(f'Number of finetune data is: {len(finetune_data)}')
 
-finetune_train_smiles = finetune_data['SMILES']
+finetune_train_smiles = finetune_data['Smiles']
 finetune_train_labels = finetune_data['pIC50']
 
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_train_smiles, finetune_train_labels),

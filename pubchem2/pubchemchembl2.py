@@ -28,9 +28,10 @@ VALIDATION_SPLIT = 0.05
 BATCH_SIZE = 128
 EPOCHS = 30
 LEARNING_RATE = 5e-6
+LEARNING_RATE_FINETUNE = 5e-5
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('device:', DEVICE)
+print(BATCH_SIZE, EPOCHS, LEARNING_RATE, LEARNING_RATE_FINETUNE, DEVICE)
 
 
 # 데이터 로드
@@ -263,7 +264,7 @@ train_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_train_smiles
                                            collate_fn=collate_fn)
 
 
-finetune_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE / 5)  # 기존 5e-5 -> 1e-5
+finetune_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE_FINETUNE)  # 기존 5e-5 -> 1e-5
 finetune_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 

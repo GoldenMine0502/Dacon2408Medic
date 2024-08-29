@@ -114,7 +114,7 @@ class Dataset:
         self.y = label
         self.train = train
 
-        self.token = list(map(lambda x: tokenize(x), self.X))
+        self.token = list(tqdm(map(lambda x: tokenize(x), self.X)))
 
     def __len__(self):
         return len(self.y)

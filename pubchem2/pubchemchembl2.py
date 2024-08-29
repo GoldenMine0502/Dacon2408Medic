@@ -109,6 +109,7 @@ validation_labels = data['pXC50'][validation_index:].values
 
 
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
+max_length = tokenizer.model_max_length
 
 def tokenize(string):
     """
@@ -168,7 +169,6 @@ pretrained_model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, 
 # print('max length set to:', MODEL_MAX_LEN)
 
 model = RobertaForSequenceClassification(pretrained_model.config)  # pretrain 안쓰고 학습
-max_length = tokenizer.model_max_length
 model.to(DEVICE)
 
 del pretrained_model

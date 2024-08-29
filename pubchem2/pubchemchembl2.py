@@ -111,7 +111,7 @@ validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smile
                                                 batch_size=BATCH_SIZE,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
-print('data: ', len(train_loader), len(validation_loader))
+print('data:', len(train_loader), len(validation_loader))
 
 # 모델 로드
 MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"

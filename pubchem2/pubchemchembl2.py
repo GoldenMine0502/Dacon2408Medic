@@ -24,7 +24,7 @@ FINETUNE_PATH = '../dataset/train.csv'
 TEST_PATH = '../dataset/test.csv'
 VALIDATION_SPLIT = 0.05
 
-MODEL_MAX_LEN = 128
+MODEL_MAX_LEN = 256
 BATCH_SIZE = 128
 EPOCHS = 30
 LEARNING_RATE = 1e-5

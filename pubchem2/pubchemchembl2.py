@@ -13,7 +13,7 @@ from tqdm import tqdm
 from rdkit.Chem import rdFingerprintGenerator
 
 # 초기 설정
-# os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 tqdm.pandas(ncols=75)
 os.makedirs('chkpt', exist_ok=True)
 os.makedirs('dataset', exist_ok=True)
@@ -129,15 +129,19 @@ validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smile
 print('data:', len(train_loader), len(validation_loader))
 
 # 모델 로드
-model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
-model = RobertaForSequenceClassification(model.config)  # pretrain 안쓰고 학습
+pretrained_model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
+
+max_length = pretrained_model.config.max_position_embeddings
+print('max length:', max_length)
+pretrained_model.config.max_position_embeddings = MODEL_MAX_LEN
+print('max length set to:', MODEL_MAX_LEN)
+
+model = RobertaForSequenceClassification(pretrained_model.config)  # pretrain 안쓰고 학습
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 model.to(DEVICE)
 
-max_length = tokenizer.model_max_length
-print('max length:', max_length)
-model.config.model_max_length = MODEL_MAX_LEN
-print('max length set to:', MODEL_MAX_LEN)
+del pretrained_model
+
 criterion = nn.MSELoss()
 pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs

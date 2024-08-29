@@ -126,7 +126,6 @@ model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=
 model = RobertaForSequenceClassification(model.config)  # pretrain 안쓰고 학습
 tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 model.to(DEVICE)
-tokenizer.to(DEVICE)
 
 max_length = tokenizer.model_max_length
 print('max length:', max_length)

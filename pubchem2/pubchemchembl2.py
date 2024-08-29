@@ -24,6 +24,7 @@ FINETUNE_PATH = '../dataset/train.csv'
 TEST_PATH = '../dataset/test.csv'
 VALIDATION_SPLIT = 0.05
 
+MODEL_MAX_LEN = 128
 BATCH_SIZE = 128
 EPOCHS = 30
 LEARNING_RATE = 1e-5
@@ -135,6 +136,8 @@ model.to(DEVICE)
 
 max_length = tokenizer.model_max_length
 print('max length:', max_length)
+model.config.model_max_length = MODEL_MAX_LEN
+print('max length set to:', MODEL_MAX_LEN)
 criterion = nn.MSELoss()
 pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
@@ -243,7 +246,7 @@ train_and_validate(train_loader, None, finetune_optimizer, finetune_scheduler)  
 # inference
 test_data = pd.read_csv(TEST_PATH)
 
-finetune_test_smiles = finetune_data['Smiles']
+finetune_test_smiles = test_data['Smiles']
 finetune_test_labels = np.zeros(len(test_data), dtype=float)
 
 test_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_test_smiles, finetune_test_labels),

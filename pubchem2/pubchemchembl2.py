@@ -172,7 +172,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             total_train_loss += loss.item()
             count += 1
 
-            pbar.set_description(f'epoch: {epoch}, loss: {total_train_loss / count}')
+            pbar.set_description(f'epoch: {epoch}, loss: {round(total_train_loss / count, 4)}')
         avg_train_loss = total_train_loss / count
         print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
 

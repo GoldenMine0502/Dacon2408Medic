@@ -79,6 +79,34 @@ else:
     print('loaded cached data')
 
 
+
+tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
+max_length = tokenizer.model_max_length
+
+
+def tokenize(string):
+    """
+    Tokenize and encode a string using the provided tokenizer.
+
+    Parameters:
+        string (str): Input string to be tokenized.
+
+    Returns:
+        Tuple of input_ids and attention_mask.
+    """
+    encodings = tokenizer.encode_plus(
+        string,
+        add_special_tokens=True,
+        truncation=True,
+        padding="max_length",
+        max_length=max_length,
+        return_attention_mask=True
+    )
+    input_ids = encodings["input_ids"]
+    attention_mask = encodings["attention_mask"]
+    return input_ids, attention_mask
+
+
 # 데이터셋 정의
 class Dataset:
     def __init__(self, smiles, label, train=True):
@@ -141,8 +169,6 @@ pretrained_model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, 
 # print('max length set to:', MODEL_MAX_LEN)
 
 model = RobertaForSequenceClassification(pretrained_model.config)  # pretrain 안쓰고 학습
-tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
-max_length = tokenizer.model_max_length
 model.to(DEVICE)
 
 del pretrained_model
@@ -153,27 +179,6 @@ pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma
 
 
 # pretrain
-def tokenize(string):
-    """
-    Tokenize and encode a string using the provided tokenizer.
-
-    Parameters:
-        string (str): Input string to be tokenized.
-
-    Returns:
-        Tuple of input_ids and attention_mask.
-    """
-    encodings = tokenizer.encode_plus(
-        string,
-        add_special_tokens=True,
-        truncation=True,
-        padding="max_length",
-        max_length=max_length,
-        return_attention_mask=True
-    )
-    input_ids = encodings["input_ids"]
-    attention_mask = encodings["attention_mask"]
-    return input_ids, attention_mask
 
 
 class RMSELoss(nn.Module):

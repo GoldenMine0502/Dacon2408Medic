@@ -15,7 +15,8 @@ from rdkit.Chem import rdFingerprintGenerator
 # 초기 설정
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 tqdm.pandas(ncols=75)
-
+os.makedirs('chkpt', exist_ok=True)
+os.makedirs('dataset', exist_ok=True)
 
 # 데이터 로드
 PRETRAIN_PATH = '../dataset/pubchem.chembl.dataset4publication_inchi_smiles.tsv'
@@ -101,7 +102,7 @@ def collate_fn(batch):
     return x_list, torch.tensor(y_list, dtype=torch.float32)
 
 
-BATCH_SIZE = 128
+BATCH_SIZE = 160
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
                                            shuffle=True,
@@ -129,7 +130,7 @@ pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 # pretrain
-EPOCHS = 1
+EPOCHS = 30
 
 
 def tokenize(string):
@@ -180,6 +181,9 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                 pbar.set_description(f'epoch: {epoch}, loss: {round(total_train_loss / count, 4)}')
             avg_train_loss = total_train_loss / count
             print(f"Epoch {epoch}: Train Loss {avg_train_loss:.4f}")
+
+            if epoch % 5 == 0:
+                torch.save(model.state_dict(), f'chkpt/model_{epoch}.pt')
 
         if validation_loader is not None:
             # Validation loop

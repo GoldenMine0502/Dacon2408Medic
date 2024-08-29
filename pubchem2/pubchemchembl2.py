@@ -108,6 +108,30 @@ validation_smiles = data['SMILES'][validation_index:].values
 validation_labels = data['pXC50'][validation_index:].values
 
 
+
+def tokenize(string):
+    """
+    Tokenize and encode a string using the provided tokenizer.
+
+    Parameters:
+        string (str): Input string to be tokenized.
+
+    Returns:
+        Tuple of input_ids and attention_mask.
+    """
+    encodings = tokenizer.encode_plus(
+        string,
+        add_special_tokens=True,
+        truncation=True,
+        padding="max_length",
+        max_length=max_length,
+        return_attention_mask=True
+    )
+    input_ids = encodings["input_ids"]
+    attention_mask = encodings["attention_mask"]
+    return input_ids, attention_mask
+
+
 def collate_fn(batch):
     x_list = []
     y_list = []
@@ -155,27 +179,6 @@ pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma
 
 
 # pretrain
-def tokenize(string):
-    """
-    Tokenize and encode a string using the provided tokenizer.
-
-    Parameters:
-        string (str): Input string to be tokenized.
-
-    Returns:
-        Tuple of input_ids and attention_mask.
-    """
-    encodings = tokenizer.encode_plus(
-        string,
-        add_special_tokens=True,
-        truncation=True,
-        padding="max_length",
-        max_length=max_length,
-        return_attention_mask=True
-    )
-    input_ids = encodings["input_ids"]
-    attention_mask = encodings["attention_mask"]
-    return input_ids, attention_mask
 
 
 class RMSELoss(nn.Module):

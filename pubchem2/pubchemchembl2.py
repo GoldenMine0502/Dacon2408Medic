@@ -119,7 +119,7 @@ max_length = tokenizer.model_max_length
 print('max length:', max_length)
 criterion = nn.MSELoss()
 pretrain_optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
-scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
+pretrain_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 
 # pretrain
 EPOCHS = 1
@@ -210,7 +210,12 @@ train_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_train_smiles
                                            shuffle=True,
                                            collate_fn=collate_fn)
 
-train_and_validate(train_loader, None)  # validation 데이터가 딱히 없어서
+
+finetune_optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)  # 기존 5e-5 -> 1e-5
+finetune_scheduler = lr_scheduler.StepLR(pretrain_optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
+
+
+train_and_validate(train_loader, None, finetune_optimizer, finetune_scheduler)  # validation 데이터가 딱히 없어서
 
 # inference
 TEST_PATH = '../dataset/test.csv'

@@ -15,22 +15,6 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
 
 # %%
-CFG = {
-    'NBITS': 2048,
-}
-
-# %%
-# SMILES 데이터를 분자 지문으로 변환
-def smiles_to_fingerprint(smiles):
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is not None:
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=CFG['NBITS'])
-        return np.array(fp)
-    else:
-        return np.zeros((CFG['NBITS'],))
-
-
-# %%
 # 학습 ChEMBL 데이터 로드
 chembl_data = pd.read_csv('train.csv')  # 예시 파일 이름
 print(f'Number of examples is: {len(chembl_data)}')

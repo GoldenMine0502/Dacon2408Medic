@@ -1,0 +1,216 @@
+import numpy as np
+import pandas as pd
+import os
+import torch
+import torch.nn as nn
+
+import torch.optim.lr_scheduler as lr_scheduler
+from torch.utils.data import TensorDataset
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from tqdm import tqdm
+
+# 데이터 로드
+PRETRAIN_PATH = '../dataset/pubchem.chembl.dataset4publication_inchi_smiles.tsv'
+PRETRAIN_FILTERED_PATH = '../dataset/filtered_pubchemchembl.tsv'
+
+if not os.path.exists(PRETRAIN_FILTERED_PATH):
+    data = pd.read_csv(PRETRAIN_PATH, sep='\t')
+    print('data loaded', len(data))
+
+    # Activity_Flag가 'A'인 데이터만 필터링
+    data = data[data['Activity_Flag'] == 'A']
+    print('filtered data count:', len(data))
+
+    data.to_csv(PRETRAIN_FILTERED_PATH, sep='\t', index=False)
+else:
+    # 미리 필터링된 파일 읽기 (읽는 속도 최적화)
+    data = pd.read_csv(PRETRAIN_FILTERED_PATH, sep='\t')
+
+
+# 데이터셋 정의
+class Dataset:
+    def __init__(self, smiles, label, train=True):
+        self.X = smiles
+        self.y = label
+        self.train = train
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, idx):
+        item_x = self.X[idx]
+        item_y = self.y[idx]
+
+        return item_x, item_y
+
+
+VALIDATION_SPLIT = 0.05
+validation_index = int((1 - VALIDATION_SPLIT) * len(data))
+
+train_smiles = data['SMILES'][:validation_index]
+train_labels = data['pXC50'][:validation_index]
+validation_smiles = data['SMILES'][validation_index:]
+validation_labels = data['pXC50'][validation_index:]
+
+
+def collate_fn(batch):
+    x_list = []
+    y_list = []
+    for batch_X, batch_y in batch:
+        x_list.append(batch_X)
+        y_list.append(batch_y)
+
+    return x_list, torch.tensor(y_list, dtype=torch.float32)
+
+
+BATCH_SIZE = 128
+train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
+                                           batch_size=BATCH_SIZE,
+                                           shuffle=True,
+                                           collate_fn=collate_fn)
+validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smiles, validation_labels),
+                                                batch_size=BATCH_SIZE,
+                                                shuffle=False,
+                                                collate_fn=collate_fn)
+
+# 모델 로드
+MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+max_length = tokenizer.model_max_length
+print('max length:', max_length)
+criterion = nn.MSELoss()
+optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
+
+# pretrain
+EPOCHS = 1
+
+
+def tokenize(string):
+    """
+    Tokenize and encode a string using the provided tokenizer.
+
+    Parameters:
+        string (str): Input string to be tokenized.
+
+    Returns:
+        Tuple of input_ids and attention_mask.
+    """
+    encodings = tokenizer.encode_plus(
+        string,
+        add_special_tokens=True,
+        truncation=True,
+        padding="max_length",
+        max_length=max_length,
+        return_attention_mask=True
+    )
+    input_ids = encodings["input_ids"]
+    attention_mask = encodings["attention_mask"]
+    return input_ids, attention_mask
+
+
+def train_and_validate(train_loader, validation_loader, epochs=EPOCHS):
+    for epoch in tqdm(range(1, epochs + 1)):
+        if train_loader is not None:
+            model.train()
+            total_train_loss = 0
+            count = 0
+            for (smiles, labels) in (pbar := tqdm(train_loader)):
+                optimizer.zero_grad(set_to_none=True)
+
+                inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
+                input_ids = inputs['input_ids'].to(DEVICE)
+                attention_mask = inputs['attention_mask'].to(DEVICE)
+
+                output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                predictions = output_dict.logits.squeeze(dim=1)
+                loss = criterion(predictions, labels)
+                loss.backward()
+                optimizer.step()
+                total_train_loss += loss.item()
+                count += 1
+
+                pbar.set_description(f'epoch: {epoch}, loss: {total_train_loss / count}')
+            avg_train_loss = total_train_loss / count
+            print(f"Epoch {epoch + 1}: Train Loss {avg_train_loss:.4f}")
+
+        if validation_loader is not None:
+            # Validation loop
+            model.eval()
+            total_val_loss = 0
+            with torch.no_grad():
+                for (smiles, labels) in validation_loader:
+                    inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
+                    input_ids = inputs['input_ids'].to(DEVICE)
+                    attention_mask = inputs['attention_mask'].to(DEVICE)
+
+                    output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                    predictions = output_dict.logits.squeeze(dim=1)
+                    loss = criterion(predictions, labels)
+                    total_val_loss += loss.item()
+            avg_val_loss = total_val_loss / len(validation_loader)
+
+            print(f"Epoch {epoch + 1}: Val Loss {avg_val_loss:.4f}")
+
+        # Step the scheduler
+        scheduler.step()
+
+
+train_and_validate(train_loader, validation_loader, EPOCHS)
+
+# finetune
+FINETUNE_PATH = '../dataset/train.csv'
+finetune_data = pd.read_csv(FINETUNE_PATH)  # 예시 파일 이름
+print(f'Number of finetune data is: {len(finetune_data)}')
+
+finetune_train_smiles = finetune_data['SMILES']
+finetune_train_labels = finetune_data['pIC50']
+
+train_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_train_smiles, finetune_train_labels),
+                                           batch_size=BATCH_SIZE,
+                                           shuffle=True,
+                                           collate_fn=collate_fn)
+
+train_and_validate(train_loader, None)  # validation 데이터가 딱히 없어서
+
+# inference
+TEST_PATH = '../dataset/test.csv'
+test_data = pd.read_csv(TEST_PATH)
+
+finetune_test_smiles = finetune_data['SMILES']
+finetune_test_labels = np.zeros(len(test_data), dtype=float)
+
+test_loader = torch.utils.data.DataLoader(dataset=Dataset(finetune_test_smiles, finetune_test_labels),
+                                          batch_size=BATCH_SIZE,
+                                          shuffle=True,
+                                          collate_fn=collate_fn)
+
+model.eval()  # Set the model to evaluation mode
+test_predictions = []
+
+with torch.no_grad():
+    for smiles, _ in test_loader:
+        inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
+        input_ids = inputs['input_ids'].to(DEVICE)
+        attention_mask = inputs['attention_mask'].to(DEVICE)
+
+        output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
+        predictions = output_dict.logits.squeeze(dim=1)
+        test_predictions.extend(predictions.tolist())
+
+
+def pIC50_to_IC50(pic50_values):
+    """Convert pIC50 values to IC50 (nM)."""
+    return 10 ** (9 - pic50_values)
+
+
+test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
+
+# Save the predictions to a submission file
+test_data["IC50_nM"] = test_ic50_predictions
+submission_df = test_data[["ID", "IC50_nM"]]
+submission_df.to_csv("submission.csv", index=False)

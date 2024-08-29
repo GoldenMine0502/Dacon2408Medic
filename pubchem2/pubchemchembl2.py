@@ -234,7 +234,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                     loss = criterion(prediction, labels)
                     total_val_loss += loss.item()
 
-                    abs_error_pic50 = np.abs(predictions.cpu().detach().numpy() - labels.cpu().detach().numpy())
+                    abs_error_pic50 = np.abs(prediction.cpu().detach().numpy() - labels.cpu().detach().numpy())
                     errors = np.concatenate((errors, abs_error_pic50))
                     mses = np.concatenate((mses, loss.cpu().detach().numpy()))
                     predictions = np.concatenate((predictions, prediction.cpu().detach().numpy()))
@@ -249,7 +249,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
         scheduler.step()
 
 
-train_and_validate(train_loader, validation_loader, pretrain_optimizer, pretrain_scheduler)
+train_and_validate(None, validation_loader, pretrain_optimizer, pretrain_scheduler)
 
 # finetune
 finetune_data = pd.read_csv(FINETUNE_PATH)  # 예시 파일 이름

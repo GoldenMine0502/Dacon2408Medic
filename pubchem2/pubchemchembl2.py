@@ -7,7 +7,8 @@ import torch.nn as nn
 import torch.optim.lr_scheduler as lr_scheduler
 from rdkit import Chem, DataStructs
 from torch.utils.data import TensorDataset
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, RobertaForSequenceClassification, \
+    RobertaModel
 from tqdm import tqdm
 from rdkit.Chem import rdFingerprintGenerator
 
@@ -116,8 +117,9 @@ MODEL_NAME = "DeepChem/ChemBERTa-77M-MLM"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('device:', DEVICE)
 
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=1)
+model = RobertaForSequenceClassification(model.config)  # pretrain 안쓰고 학습
+tokenizer = RobertaModel.from_pretrained(MODEL_NAME)
 model.to(DEVICE)
 
 max_length = tokenizer.model_max_length

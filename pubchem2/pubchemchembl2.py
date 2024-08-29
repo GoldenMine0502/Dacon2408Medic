@@ -206,7 +206,7 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
                     output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                     predictions = output_dict.logits.squeeze(dim=1)
 
-                    abs_error_pic50 = np.abs(predictions - labels)
+                    abs_error_pic50 = np.abs(predictions.cpu().detach().numpy() - labels.cpu().detach().numpy())
                     errors = np.concatenate((errors, abs_error_pic50))
 
                     loss = criterion(predictions, labels)

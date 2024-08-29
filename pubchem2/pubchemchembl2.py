@@ -13,7 +13,7 @@ from tqdm import tqdm
 from rdkit.Chem import rdFingerprintGenerator
 
 # 초기 설정
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# os.environ["TOKENIZERS_PARALLELISM"] = "false"
 tqdm.pandas(ncols=75)
 os.makedirs('chkpt', exist_ok=True)
 os.makedirs('dataset', exist_ok=True)
@@ -99,16 +99,20 @@ def collate_fn(batch):
         x_list.append(batch_X)
         y_list.append(batch_y)
 
-    return x_list, torch.tensor(y_list, dtype=torch.float32)
+    token = tokenizer(x_list, return_tensors='pt', padding=True)
+
+    return x_list, torch.tensor(y_list, dtype=torch.float32), token
 
 
 BATCH_SIZE = 140
 train_loader = torch.utils.data.DataLoader(dataset=Dataset(train_smiles, train_labels),
                                            batch_size=BATCH_SIZE,
+                                           num_workers=4,
                                            shuffle=True,
                                            collate_fn=collate_fn)
 validation_loader = torch.utils.data.DataLoader(dataset=Dataset(validation_smiles, validation_labels),
                                                 batch_size=BATCH_SIZE,
+                                                num_workers=4,
                                                 shuffle=False,
                                                 collate_fn=collate_fn)
 print('data:', len(train_loader), len(validation_loader))
@@ -163,12 +167,11 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             model.train()
             total_train_loss = 0
             count = 0
-            for (smiles, labels) in (pbar := tqdm(train_loader, ncols=75)):
+            for smiles, labels, token in (pbar := tqdm(train_loader, ncols=75)):
                 optimizer.zero_grad(set_to_none=True)
 
-                inputs = tokenizer(smiles, return_tensors='pt', padding=True)
-                input_ids = inputs['input_ids']
-                attention_mask = inputs['attention_mask']
+                input_ids = token['input_ids'].to(DEVICE)
+                attention_mask = token['attention_mask'].to(DEVICE)
                 labels = labels.to(DEVICE)
 
                 output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
@@ -191,10 +194,9 @@ def train_and_validate(train_loader, validation_loader, optimizer, scheduler, ep
             model.eval()
             total_val_loss = 0
             with torch.no_grad():
-                for (smiles, labels) in tqdm(validation_loader, ncols=75):
-                    inputs = tokenizer(smiles, return_tensors='pt', padding=True)
-                    input_ids = inputs['input_ids']
-                    attention_mask = inputs['attention_mask']
+                for smiles, labels, token in tqdm(validation_loader, ncols=75):
+                    input_ids = token['input_ids'].to(DEVICE)
+                    attention_mask = token['attention_mask'].to(DEVICE)
                     labels = labels.to(DEVICE)
 
                     output_dict = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
@@ -247,10 +249,9 @@ model.eval()  # Set the model to evaluation mode
 test_predictions = []
 
 with torch.no_grad():
-    for smiles, _ in test_loader:
-        inputs = tokenizer(smiles, return_tensors='pt', padding=True).to(DEVICE)
-        input_ids = inputs['input_ids'].to(DEVICE)
-        attention_mask = inputs['attention_mask'].to(DEVICE)
+    for smiles, _, token in test_loader:
+        input_ids = token['input_ids'].to(DEVICE)
+        attention_mask = token['attention_mask'].to(DEVICE)
 
         output_dict = model(input_ids=input_ids, attention_mask=attention_mask)
         predictions = output_dict.logits.squeeze(dim=1)

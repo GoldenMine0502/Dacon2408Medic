@@ -36,19 +36,6 @@ def smiles_to_graph(smiles):
 class GNNModel(torch.nn.Module):
     def __init__(self, input_size=1, hidden_size=1024, dropout_rate=0.8):
         super(GNNModel, self).__init__()
-        #         # Three layers and a output layer
-        #         self.fc1 = nn.Linear(input_size, hidden_size)  # 1st Full-Connected Layer
-        #         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        #         self.fc3 = nn.Linear(hidden_size, hidden_size)
-        #         self.fc_out = nn.Linear(hidden_size, out_size)  # Output layer
-        #         # Layer normalization for faster training
-        #         self.ln1 = nn.BatchNorm1d(hidden_size)
-        #         self.ln2 = nn.BatchNorm1d(hidden_size)
-        #         self.ln3 = nn.BatchNorm1d(hidden_size)
-        #         # LeakyReLU will be used as the activation function
-        #         self.activation = nn.LeakyReLU()
-        #         # Dropout for regularization
-        #         self.dropout = nn.Dropout(dropout_rate)
         self.conv1 = GCNConv(input_size, hidden_size)
         self.conv2 = GCNConv(hidden_size, hidden_size)
         self.conv3 = GCNConv(hidden_size, hidden_size)
@@ -62,17 +49,7 @@ class GNNModel(torch.nn.Module):
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
-        # x = self.conv1(x, edge_index)
-        # # x = self.ln1(x)  # Batch Normalization 적용
-        # x = F.relu(x)
-        # x = self.conv2(x, edge_index)
-        # # x = self.ln2(x)  # Batch Normalization 적용
-        # x = global_mean_pool(x, data.batch)  # 그래프 풀링
-        # x = F.relu(self.fc1(x))
-        # # x = self.ln3(x)  # Batch Normalization 적용
-        # x = self.fc2(x)
-
-        # Fully connected =&amp;gt; Layer Norm =&amp;gt; LeakyReLU =&amp;gt; Dropout times 3
+        
         out = self.conv1(x, edge_index)
         out = self.ln1(out)
         out = self.activation(out)

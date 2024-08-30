@@ -85,7 +85,7 @@ def get_tensor_data(data):
 train_dataset = get_tensor_data(train_df)
 val_dataset = get_tensor_data(val_df)
 
-batch_size = 128
+batch_size = 32
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size)
 

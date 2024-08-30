@@ -115,7 +115,7 @@ scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # Decrease 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 
-epochs = 15
+epochs = 30
 torch.manual_seed(12345)
 
 for epoch in tqdm(range(epochs)):

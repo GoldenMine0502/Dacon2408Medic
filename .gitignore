@@ -1,8 +1,11 @@
+# my custom
+dataset/
+*-me.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-dataset/
 config/config.yml
 # C extensions
 *.so

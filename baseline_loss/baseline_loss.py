@@ -109,7 +109,7 @@ def huber_loss(y_pred, y_true, delta=0.5):
 
 
 # Loss criterion and optimizer
-criterion = huber_loss
+criterion = berhu_loss
 optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # Decrease LR by a factor of 0.5 every 10 epochs
 device = "cuda" if torch.cuda.is_available() else "cpu"

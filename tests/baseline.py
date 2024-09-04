@@ -30,7 +30,7 @@ def smiles_to_fingerprint(smiles):
         return np.zeros((CFG['NBITS'],))
 
 # 학습 ChEMBL 데이터 로드
-chembl_data = pd.read_csv('dataset/train.csv')  # 예시 파일 이름
+chembl_data = pd.read_csv('../dataset/train.csv')  # 예시 파일 이름
 chembl_data.head()
 
 train = chembl_data[['Smiles', 'pIC50']]
@@ -57,15 +57,17 @@ rmse = np.sqrt(mse)
 
 print(f'RMSE: {rmse}')
 
-test = pd.read_csv('dataset/test.csv')
+test = pd.read_csv('../dataset/test.csv')
 test['Fingerprint'] = test['Smiles'].apply(smiles_to_fingerprint)
 
 test_x = np.stack(test['Fingerprint'].values)
 
 test_y_pred = model.predict(test_x)
 
-submit = pd.read_csv('dataset/sample_submission.csv')
-submit['IC50_nM'] = pIC50_to_IC50(test_y_pred)
-submit.head()
+# submit = pd.read_csv('sample_submission.csv')
+test['IC50_nM'] = pIC50_to_IC50(test_y_pred)
+print(test.head())
+print(test_y_pred)
+print(pIC50_to_IC50(test_y_pred))
 
-submit.to_csv('dataset/baseline_submit.csv', index=False)
+test[['ID', 'IC50_nM']].to_csv('baseline_submit.csv', index=False)

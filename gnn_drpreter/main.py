@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import argparse
 
@@ -198,15 +200,17 @@ def main():
     model.to(device)
 
     criterion = nn.MSELoss()
-    opt = torch.optim.AdamW(model.parameters(), lr=5e-5)
+    opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
     # opt = torch.optim.Adam(model.parameters(), lr=0.0001)
 
     train_losses = []
 
-    EPOCH = 60
+    EPOCH = 20
     for epoch in range(1, EPOCH + 1):
         # train
         model.train()
+
+        random.shuffle(train_dataset)
         for graph, label in tqdm(train_dataset, ncols=75):
             label = label.to(device).unsqueeze(0)
 
@@ -215,7 +219,9 @@ def main():
                 edge_index=graph.edge_index.to(device)
             )
 
+
             loss = criterion(output, label.float())
+            # print(round(output.item(), 2), round(label.item(), 2), round(loss.item(), 2))
             opt.zero_grad()
             loss.backward()
             opt.step()

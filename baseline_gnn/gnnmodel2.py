@@ -410,7 +410,7 @@ def main():
     n_conv_layers = 4
     n_hidden_layers = 2
     learning_rate = 0.05
-    n_epochs = 50
+    n_epochs = 1
 
     #### Start by creating dataset
     # main_path = Path(__file__).resolve().parent
@@ -512,12 +512,15 @@ def main():
             # Compute output from network
             nn_prediction = model(*nn_input)
             prediction = standardizer.restore(nn_prediction.detach().cpu())
-            test_predictions.append(prediction)
+            # print(prediction, prediction.shape)
+            test_predictions.extend(prediction)
 
     def pIC50_to_IC50(pic50_values):
         """Convert pIC50 values to IC50 (nM)."""
         return 10 ** (9 - pic50_values)
 
+    print(test_predictions)
+    print(np.array(test_predictions).shape)
     test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
 
     # save results

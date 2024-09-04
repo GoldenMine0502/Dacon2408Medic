@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -90,7 +91,7 @@ class Graph:
 
 
 class GraphData(Dataset):
-    def __init__(self, dataset_path: str, node_vec_len: int, max_atoms: int):
+    def __init__(self, dataset_path: [str, os.PathLike], node_vec_len: int, max_atoms: int):
         # Save attributes
         self.node_vec_len = node_vec_len
         self.max_atoms = max_atoms
@@ -100,8 +101,8 @@ class GraphData(Dataset):
 
         # Create lists
         self.indices = df.index.to_list()
-        self.smiles = df["smiles"].to_list()
-        self.outputs = df["measured log solubility in mols per litre"].to_list()
+        self.smiles = df["Smiles"].to_list()
+        self.outputs = df["pIC50"].to_list()
 
     def __len__(self):
         return len(self.indices)
@@ -197,14 +198,14 @@ def collate_graph_dataset(dataset: Dataset):
 
 class ChemGCN(nn.Module):
     def __init__(
-        self,
-        node_vec_len: int,
-        node_fea_len: int,
-        hidden_fea_len: int,
-        n_conv: int,
-        n_hidden: int,
-        n_outputs: int,
-        p_dropout: float = 0.0,
+            self,
+            node_vec_len: int,
+            node_fea_len: int,
+            hidden_fea_len: int,
+            n_conv: int,
+            n_hidden: int,
+            n_outputs: int,
+            p_dropout: float = 0.0,
     ):
         # Call constructor of base class
         super().__init__()
@@ -311,15 +312,15 @@ class Standardizer:
 
 
 def train_model(
-    epoch,
-    model,
-    training_dataloader,
-    optimizer,
-    loss_fn,
-    standardizer,
-    use_GPU,
-    max_atoms,
-    node_vec_len,
+        epoch,
+        model,
+        training_dataloader,
+        optimizer,
+        loss_fn,
+        standardizer,
+        use_GPU,
+        max_atoms,
+        node_vec_len,
 ):
     # Create variables to store losses and error
     avg_loss = 0
@@ -382,10 +383,10 @@ def train_model(
 
     # Print stats
     print(
-        "Epoch: [{0}]\tTraining Loss: [{1:.2f}]\tTraining MAE: [{2:.2f}]"\
-           .format(
-                    epoch, avg_loss, avg_mae
-           )
+        "Epoch: [{0}]\tTraining Loss: [{1:.2f}]\tTraining MAE: [{2:.2f}]" \
+            .format(
+            epoch, avg_loss, avg_mae
+        )
     )
 
     # Return loss and MAE
@@ -401,7 +402,6 @@ def main():
     #### Inputs
     max_atoms = 200
     node_vec_len = 60
-    train_size = 0.7
     batch_size = 32
     hidden_nodes = 60
     n_conv_layers = 4
@@ -410,30 +410,22 @@ def main():
     n_epochs = 50
 
     #### Start by creating dataset
-    main_path = Path(__file__).resolve().parent
-    data_path = main_path / "data" / "solubility_data.csv"
-    dataset = GraphData(dataset_path=data_path, max_atoms=max_atoms,
-                        node_vec_len=node_vec_len)
-
-    #### Split data into training and test sets
-    # Get train and test sizes
-    dataset_indices = np.arange(0, len(dataset), 1)
-    train_size = int(np.round(train_size * len(dataset)))
-    test_size = len(dataset) - train_size
-
-    # Randomly sample train and test indices
-    train_indices = np.random.choice(dataset_indices, size=train_size,
-                                     replace=False)
-    test_indices = np.array(list(set(dataset_indices) - set(train_indices)))
+    # main_path = Path(__file__).resolve().parent
+    data_path = '../dataset/train.csv'
+    test_path = '../dataset/test.csv'
+    train_dataset = GraphData(dataset_path=data_path,
+                              max_atoms=max_atoms,
+                              node_vec_len=node_vec_len)
+    test_dataset = GraphData(dataset_path=test_path,
+                             max_atoms=max_atoms,
+                             node_vec_len=node_vec_len)
 
     # Create dataoaders
-    train_sampler = SubsetRandomSampler(train_indices)
-    test_sampler = SubsetRandomSampler(test_indices)
-    train_loader = DataLoader(dataset, batch_size=batch_size,
-                              sampler=train_sampler,
+    train_loader = DataLoader(train_dataset,
+                              batch_size=batch_size,
                               collate_fn=collate_graph_dataset)
-    test_loader = DataLoader(dataset, batch_size=batch_size,
-                             sampler=test_sampler,
+    test_loader = DataLoader(test_dataset,
+                             batch_size=batch_size,
                              collate_fn=collate_graph_dataset)
 
     #### Initialize model, standardizer, optimizer, and loss function
@@ -446,7 +438,7 @@ def main():
         model.cuda()
 
     # Standardizer
-    outputs = [dataset[i][1] for i in range(len(dataset))]
+    outputs = [train_dataset[i][1] for i in range(len(train_dataset))]
     standardizer = Standardizer(torch.Tensor(outputs))
 
     # Optimizer
@@ -487,18 +479,36 @@ def main():
     # print(f"Test MAE: {test_mae:.2f}")
 
     # testing
-    test_df = pd.read_csv('../dataset/test.csv')
-    test_smiles = test_df['Smiles']
-
     model.eval()  # Set the model to evaluation mode
     test_predictions = []
 
     with torch.no_grad():
-        for smile in test_smiles:
-            graph = smiles_to_graph(smile).to(device)
-            output = model(graph)
-            output = output.item()
-            test_predictions.append(output)
+        for i, dataset in enumerate(test_loader):
+            # Unpack data
+            node_mat = dataset[0][0]
+            adj_mat = dataset[0][1]
+            output = dataset[1]
+
+            # Reshape inputs
+            first_dim = int((torch.numel(node_mat)) / (max_atoms * node_vec_len))
+            node_mat = node_mat.reshape(first_dim, max_atoms, node_vec_len)
+            adj_mat = adj_mat.reshape(first_dim, max_atoms, max_atoms)
+
+            # Standardize output
+            output_std = standardizer.standardize(output)
+
+            # Package inputs and outputs; check if GPU is enabled
+            if use_GPU:
+                nn_input = (node_mat.cuda(), adj_mat.cuda())
+                nn_output = output_std.cuda()
+            else:
+                nn_input = (node_mat, adj_mat)
+                nn_output = output_std
+
+            # Compute output from network
+            nn_prediction = model(*nn_input)
+            prediction = standardizer.restore(nn_prediction.detach().cpu())
+            test_predictions.append(prediction)
 
     def pIC50_to_IC50(pic50_values):
         """Convert pIC50 values to IC50 (nM)."""
@@ -506,6 +516,12 @@ def main():
 
     test_ic50_predictions = pIC50_to_IC50(np.array(test_predictions))
 
+    # save results
+    test_df = pd.read_csv('../dataset/test.csv')
     test_df["IC50_nM"] = test_ic50_predictions
     submission_df = test_df[["ID", "IC50_nM"]]
     submission_df.to_csv("submission.csv", index=False)
+
+
+if __name__ == "__main__":
+    main()

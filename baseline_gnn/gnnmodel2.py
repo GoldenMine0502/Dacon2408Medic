@@ -409,7 +409,7 @@ def main():
     hidden_nodes = 60
     n_conv_layers = 4
     n_hidden_layers = 2
-    learning_rate = 0.05
+    learning_rate = 0.1
     n_epochs = 50
 
     #### Start by creating dataset

@@ -405,7 +405,7 @@ def main():
     #### Inputs
     max_atoms = 200
     node_vec_len = 60
-    batch_size = 32
+    batch_size = 1
     hidden_nodes = 60
     n_conv_layers = 4
     n_hidden_layers = 2

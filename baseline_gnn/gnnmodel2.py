@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+from datasets import tqdm
 from rdkit.Chem import rdmolops, rdDistGeom
 from torch import nn
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
@@ -333,7 +334,7 @@ def train_model(
     model.train()
 
     # Go over each batch in the dataloader
-    for i, dataset in enumerate(training_dataloader):
+    for i, dataset in enumerate(tqdm(training_dataloader, ncols=75)):
         # Unpack data
         node_mat = dataset[0][0]
         adj_mat = dataset[0][1]

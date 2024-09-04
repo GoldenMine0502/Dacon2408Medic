@@ -91,7 +91,7 @@ class Graph:
 
 
 class GraphData(Dataset):
-    def __init__(self, dataset_path: [str, os.PathLike], node_vec_len: int, max_atoms: int):
+    def __init__(self, dataset_path: [str, os.PathLike], node_vec_len: int, max_atoms: int, train=True):
         # Save attributes
         self.node_vec_len = node_vec_len
         self.max_atoms = max_atoms
@@ -102,8 +102,10 @@ class GraphData(Dataset):
         # Create lists
         self.indices = df.index.to_list()
         self.smiles = df["Smiles"].to_list()
-        self.outputs = df["pIC50"].to_list()
-
+        if train:
+            self.outputs = df["pIC50"].to_list()
+        else:
+            self.outputs = [0 for _ in range(len(self.smiles))]
     def __len__(self):
         return len(self.indices)
 

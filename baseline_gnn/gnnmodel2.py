@@ -420,7 +420,8 @@ def main():
                               node_vec_len=node_vec_len)
     test_dataset = GraphData(dataset_path=test_path,
                              max_atoms=max_atoms,
-                             node_vec_len=node_vec_len)
+                             node_vec_len=node_vec_len,
+                             train=False)
 
     # Create dataoaders
     train_loader = DataLoader(train_dataset,

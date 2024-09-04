@@ -410,7 +410,7 @@ def main():
     n_conv_layers = 4
     n_hidden_layers = 2
     learning_rate = 0.005
-    n_epochs = 50
+    n_epochs = 10
 
     #### Start by creating dataset
     # main_path = Path(__file__).resolve().parent

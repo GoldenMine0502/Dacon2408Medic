@@ -200,12 +200,12 @@ def main():
     model.to(device)
 
     criterion = nn.MSELoss()
-    opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    opt = torch.optim.AdamW(model.parameters(), lr=5e-5)
     # opt = torch.optim.Adam(model.parameters(), lr=0.0001)
 
     train_losses = []
 
-    EPOCH = 20
+    EPOCH = 60
     for epoch in range(1, EPOCH + 1):
         # train
         model.train()

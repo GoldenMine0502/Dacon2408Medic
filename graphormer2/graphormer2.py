@@ -151,7 +151,7 @@ if __name__ == '__main__':
     test_csv_path = '../dataset/test.csv'
 
     # Process the CSV file and convert to graph format
-    dataset = process_csv_to_graphs(csv_path, split_ratio=0.975)
+    dataset = process_csv_to_graphs(csv_path, split_ratio=0.95)
     test_dataset = process_csv_to_graphs(test_csv_path, split_ratio=1, test=True)
 
     # Print out the dataset structure
@@ -206,10 +206,12 @@ if __name__ == '__main__':
         'input_nodes', 'input_edges', 'attn_bias', 'in_degree', 'out_degree', 'spatial_pos', 'attn_edge_type'
     )
 
+    LEARNING_RATE = 1e-5
     criterion = nn.MSELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-6)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     # for train in train_loader:
     #     print(train)
+    print('lr:', LEARNING_RATE)
 
     def data_to_cuda(features, item):
         res = {}

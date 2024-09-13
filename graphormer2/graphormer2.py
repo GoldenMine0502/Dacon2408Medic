@@ -93,9 +93,13 @@ def process_csv_to_graphs(csv_path, split_ratio=0.8, test=False):
     df = pd.read_csv(csv_path)
 
     # Shuffle dataframe
-    df = df.sample(frac=1).reset_index(drop=True)
+    if not test:
+        df = df.sample(frac=1).reset_index(drop=True)
 
     # Calculate split index
+    if test:
+        split_ratio = 1.0
+
     split_index = int(len(df) * split_ratio)
 
     # Initialize lists to store graph data and labels for each split
@@ -109,7 +113,7 @@ def process_csv_to_graphs(csv_path, split_ratio=0.8, test=False):
         if not test:
             pIC50 = row['pIC50']
         else:
-            pIC50 = [0 for i in range(len(smiles))]
+            pIC50 = [0]
         # Convert SMILES to graph
         graph = smiles2graph(smiles)
 
@@ -179,7 +183,7 @@ if __name__ == '__main__':
 
     # Process the CSV file and convert to graph format
     dataset = process_csv_to_graphs(csv_path, split_ratio=SPLIT_RATIO)
-    test_dataset = process_csv_to_graphs(test_csv_path, split_ratio=1, test=True)
+    test_dataset = process_csv_to_graphs(test_csv_path, split_ratio=SPLIT_RATIO, test=True)
 
     # Print out the dataset structure
     print(dataset)
@@ -210,7 +214,7 @@ if __name__ == '__main__':
 
     train_loader = DataLoader(
         dataset['train'],
-        batch_size=16,
+        batch_size=24,
         shuffle=True,
         collate_fn=collator,
         num_workers=6
@@ -218,7 +222,7 @@ if __name__ == '__main__':
 
     validation_loader = DataLoader(
         dataset['validation'],
-        batch_size=4,
+        batch_size=2,
         collate_fn=collator,
         num_workers=4
     )
@@ -231,7 +235,32 @@ if __name__ == '__main__':
         'input_nodes', 'input_edges', 'attn_bias', 'in_degree', 'out_degree', 'spatial_pos', 'attn_edge_type'
     )
 
-    criterion = nn.MSELoss()
+
+    class ThresholdPenaltyLoss(nn.Module):
+        def __init__(self, threshold, penalty_weight):
+            super(ThresholdPenaltyLoss, self).__init__()
+            self.threshold = threshold  # 임계값
+            self.penalty_weight = penalty_weight  # 벌점 가중치
+            self.mse = nn.MSELoss()  # 기본 손실 함수 (MSE 사용)
+
+        def forward(self, predictions, targets):
+            # 기본 MSE 손실 계산
+            mse_loss = self.mse(predictions, targets)
+
+            # 임계값을 넘는 예측에 대해 벌점 부과
+            over_threshold = torch.relu(predictions - self.threshold)  # 임계값을 넘는 부분
+            penalty = self.penalty_weight * torch.sum(over_threshold)  # 넘는 부분에 대해 벌점 부과
+
+            # 최종 손실 = MSE + 벌점
+            total_loss = mse_loss + penalty
+
+            return total_loss
+
+    criterion = ThresholdPenaltyLoss(
+        threshold=0.5,
+        penalty_weight=0.1
+    )
+    # criterion = nn.MSELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     # for train in train_loader:
     #     print(train)
@@ -247,6 +276,10 @@ if __name__ == '__main__':
     # train
     for epoch in range(1, EPOCH + 1):
         losses = []
+
+        errors = np.zeros(0)
+        mses = np.zeros(0)
+        predictions = np.zeros(0)
 
         model.train()
         for train in tqdm(train_loader, ncols=75):
@@ -275,8 +308,16 @@ if __name__ == '__main__':
             # print(loss.item())
 
             losses.append(loss.item())
+            abs_error_pic50 = np.abs(prediction.cpu().detach().numpy() - labels.cpu().detach().numpy()).squeeze(1)
+            errors = np.concatenate((errors, abs_error_pic50))
+            mses = np.concatenate((mses, abs_error_pic50 ** 2))
+            predictions = np.concatenate((predictions, prediction.cpu().detach().numpy().squeeze(1)))
 
-        print('epoch {} loss {}'.format(epoch, sum(losses) / len(losses)))
+        A = np.mean(np.sqrt(mses) / (np.max(predictions) - np.min(predictions))).item()
+        B = np.mean(errors <= 0.5).item()
+        score = (0.5 * (1 - min(A, 1))) + 0.5 * B
+
+        print('epoch {} loss {} score {}'.format(epoch, sum(losses) / len(losses), score))
 
         # validation
         if epoch % 5 == 0:
@@ -308,6 +349,7 @@ if __name__ == '__main__':
     # testing
     model.eval()  # Set the model to evaluation mode
 
+    test_csv = pd.read_csv(test_csv_path)
     test_loader = DataLoader(
         test_dataset['train'],
         batch_size=1,
@@ -345,6 +387,8 @@ if __name__ == '__main__':
     submission_df = test_df[["ID", "IC50_nM"]]
     submission_df.to_csv("submission_{}_{}_{}.csv".format(EPOCH, LEARNING_RATE, SPLIT_RATIO), index=False)
 
+    # submission_df2 = test_df[["ID", "IC50_nM", 'Smiles']]
+    # submission_df2.to_csv("submission_{}_{}_{}_verify.csv".format(EPOCH, LEARNING_RATE, SPLIT_RATIO), index=False)
 
     # trainer = Trainer(
     #     model=model,

@@ -214,7 +214,7 @@ if __name__ == '__main__':
 
     train_loader = DataLoader(
         dataset['train'],
-        batch_size=24,
+        batch_size=16,
         shuffle=True,
         collate_fn=collator,
         num_workers=6
@@ -256,11 +256,11 @@ if __name__ == '__main__':
 
             return total_loss
 
-    criterion = ThresholdPenaltyLoss(
-        threshold=0.5,
-        penalty_weight=0.1
-    )
-    # criterion = nn.MSELoss()
+    # criterion = ThresholdPenaltyLoss(
+    #     threshold=0.5,
+    #     penalty_weight=0.1
+    # )
+    criterion = nn.MSELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     # for train in train_loader:
     #     print(train)
@@ -317,12 +317,16 @@ if __name__ == '__main__':
         B = np.mean(errors <= 0.5).item()
         score = (0.5 * (1 - min(A, 1))) + 0.5 * B
 
-        print('epoch {} loss {} score {}'.format(epoch, sum(losses) / len(losses), score))
+        print('epoch {} loss {} score {} {:.2f} {:.2f}'.format(epoch, sum(losses) / len(losses), score, A, B))
 
         # validation
         if epoch % 5 == 0:
             model.eval()
+
             validation_losses = []
+            errors = np.zeros(0)
+            mses = np.zeros(0)
+            predictions = np.zeros(0)
 
             for train in tqdm(validation_loader, ncols=75):
                 #         input_nodes: torch.LongTensor,
@@ -343,7 +347,16 @@ if __name__ == '__main__':
                 loss = criterion(prediction, labels)
                 validation_losses.append(loss.item())
 
-            print('validation: {}'.format(sum(validation_losses) / len(validation_losses)))
+                abs_error_pic50 = np.abs(prediction.cpu().detach().numpy() - labels.cpu().detach().numpy()).squeeze(1)
+                errors = np.concatenate((errors, abs_error_pic50))
+                mses = np.concatenate((mses, abs_error_pic50 ** 2))
+                predictions = np.concatenate((predictions, prediction.cpu().detach().numpy().squeeze(1)))
+
+            A = np.mean(np.sqrt(mses) / (np.max(predictions) - np.min(predictions))).item()
+            B = np.mean(errors <= 0.5).item()
+            score = (0.5 * (1 - min(A, 1))) + 0.5 * B
+
+            print('validation: {} score {}'.format(sum(validation_losses) / len(validation_losses), score))
     # eval
 
     # testing

@@ -273,69 +273,78 @@ if __name__ == '__main__':
 
         return res
 
+
+    def pIC50_to_IC50(pic50_values):
+        """Convert pIC50 values to IC50 (nM)."""
+        return 10 ** (9 - pic50_values)
+
+
+    class LossCalculator(nn.Module):
+        def __init__(self):
+            super(LossCalculator, self).__init__()
+
+            self.criterion = nn.MSELoss()
+
+        def epoch(self):
+            self.losses = []
+            self.errors = np.zeros(0)
+            self.mses = np.zeros(0)
+            self.predictions = np.zeros(0)
+
+        def print_status(self):
+            A = np.mean(np.sqrt(self.mses) / (np.max(self.predictions) - np.min(self.predictions))).item()
+            B = np.mean(self.errors <= 0.5).item()
+            score = 0.5 * (1 - min(A, 1)) + 0.5 * B
+            loss = sum(self.loss) / max(len(self.loss), 1)
+
+            print('loss: {}, A: {} B: {} score: {}'.format(loss, A, B, score))
+
+        def forward(self, prediction, target):
+            loss = criterion(prediction, target)
+
+            prediction = prediction.cpu().detach().numpy().squeeze()
+            target = target.cpu().detach().numpy().squeeze()
+            loss_cpu = loss.cpu().detach().numpy().squeeze()
+
+            abs_error_ic50 = np.abs(pIC50_to_IC50(prediction) - pIC50_to_IC50(target))
+
+            self.losses.append(loss.item())
+            self.errors = np.concatenate((self.errors, abs_error_ic50))
+            self.mses = np.concatenate((self.mses, loss_cpu))
+            self.predictions = np.concatenate((self.predictions, prediction))
+
+            return loss
+
+    loss_calculator = LossCalculator()
+
     # train
     for epoch in range(1, EPOCH + 1):
-        losses = []
-
-        errors = np.zeros(0)
-        mses = np.zeros(0)
-        predictions = np.zeros(0)
-
         model.train()
+        loss_calculator.epoch()
         for train in tqdm(train_loader, ncols=75):
-            #         input_nodes: torch.LongTensor,
-            #         input_edges: torch.LongTensor,
-            #         attn_bias: torch.Tensor,
-            #         in_degree: torch.LongTensor,
-            #         out_degree: torch.LongTensor,
-            #         spatial_pos: torch.LongTensor,
-            #         attn_edge_type: torch.LongTensor,
             train = data_to_cuda(features, train)
             output = model(**train)
             prediction = output.logits
+
             labels = train['labels']
-            # print(labels.dtype)
-            prediction = prediction.type(labels.dtype)
             labels = labels.unsqueeze(1)
-            # print(prediction.shape, labels.shape)
-            loss = criterion(prediction, labels)
+            prediction = prediction.type(labels.dtype)
+
+            loss = loss_calculator(prediction, labels)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            # print(loss, loss.item())
-            # print(loss.item())
-
-            losses.append(loss.item())
-            abs_error_pic50 = np.abs(prediction.cpu().detach().numpy() - labels.cpu().detach().numpy()).squeeze(1)
-            errors = np.concatenate((errors, abs_error_pic50))
-            mses = np.concatenate((mses, abs_error_pic50 ** 2))
-            predictions = np.concatenate((predictions, prediction.cpu().detach().numpy().squeeze(1)))
-
-        A = np.mean(np.sqrt(mses) / (np.max(predictions) - np.min(predictions))).item()
-        B = np.mean(errors <= 0.5).item()
-        score = (0.5 * (1 - min(A, 1))) + 0.5 * B
-
-        print('epoch {} loss {} score {} {:.2f} {:.2f}'.format(epoch, sum(losses) / len(losses), score, A, B))
+        print('epoch {}'.format(epoch))
+        loss_calculator.print_status()
 
         # validation
         if epoch % 5 == 0:
             model.eval()
-
-            validation_losses = []
-            errors = np.zeros(0)
-            mses = np.zeros(0)
-            predictions = np.zeros(0)
+            loss_calculator.epoch()
 
             for train in tqdm(validation_loader, ncols=75):
-                #         input_nodes: torch.LongTensor,
-                #         input_edges: torch.LongTensor,
-                #         attn_bias: torch.Tensor,
-                #         in_degree: torch.LongTensor,
-                #         out_degree: torch.LongTensor,
-                #         spatial_pos: torch.LongTensor,
-                #         attn_edge_type: torch.LongTensor,
                 train = data_to_cuda(features, train)
                 output = model(**train)
                 prediction = output.logits
@@ -344,20 +353,10 @@ if __name__ == '__main__':
                 labels = labels.unsqueeze(1)
 
                 prediction = prediction.type(labels.dtype)
-                loss = criterion(prediction, labels)
-                validation_losses.append(loss.item())
+                loss = loss_calculator(prediction, labels)
 
-                abs_error_pic50 = np.abs(prediction.cpu().detach().numpy() - labels.cpu().detach().numpy()).squeeze(1)
-                errors = np.concatenate((errors, abs_error_pic50))
-                mses = np.concatenate((mses, abs_error_pic50 ** 2))
-                predictions = np.concatenate((predictions, prediction.cpu().detach().numpy().squeeze(1)))
+            loss_calculator.print_status()
 
-            A = np.mean(np.sqrt(mses) / (np.max(predictions) - np.min(predictions))).item()
-            B = np.mean(errors <= 0.5).item()
-            score = (0.5 * (1 - min(A, 1))) + 0.5 * B
-
-            print('validation: {} score {}'.format(sum(validation_losses) / len(validation_losses), score))
-    # eval
 
     # testing
     model.eval()  # Set the model to evaluation mode
@@ -375,6 +374,12 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         for i, test in tqdm(enumerate(test_loader), ncols=75):
+            # data_entry = Dataset.from_dict(data_entry)
+
+            # data_entry = DatasetDict({
+            #     'train': data_entry,
+            # })
+            # test = collator([data_entry])
             test = data_to_cuda(features_test, test)
             output = model(**test)
             prediction = output.logits
@@ -385,10 +390,6 @@ if __name__ == '__main__':
             # optimizer.step()
 
             test_predictions.append(prediction.item())
-
-    def pIC50_to_IC50(pic50_values):
-        """Convert pIC50 values to IC50 (nM)."""
-        return 10 ** (9 - pic50_values)
 
     print(test_predictions)
     print(np.array(test_predictions).shape)

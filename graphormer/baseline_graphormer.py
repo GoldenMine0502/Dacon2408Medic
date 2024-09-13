@@ -1,3 +1,5 @@
+import argparse
+
 import pandas as pd
 import numpy as np
 import os
@@ -13,43 +15,35 @@ from sklearn.metrics import mean_squared_error
 from torch.utils.data import TensorDataset, DataLoader
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
+from transformers.models.graphormer import GraphormerModel, GraphormerConfig
 
-# %%
-CFG = {
-    'NBITS': 2048,
-}
-
-# %%
-# SMILES 데이터를 분자 지문으로 변환
-def smiles_to_fingerprint(smiles):
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is not None:
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=CFG['NBITS'])
-        return np.array(fp)
-    else:
-        return np.zeros((CFG['NBITS'],))
-
-
-# %%
-# 학습 ChEMBL 데이터 로드
-chembl_data = pd.read_csv('train.csv')  # 예시 파일 이름
+chembl_data = pd.read_csv('../baseline/train.csv')  # 예시 파일 이름
 print(f'Number of examples is: {len(chembl_data)}')
 chembl_data.head()
-# %%
+
 # Load model directly
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+# from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 # Load the pre-trained model and tokenizer
-model_name = "DeepChem/ChemBERTa-77M-MLM"
-model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=1)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+# model_name = "microsoft/Graphormer"
+# model_pretrained = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=1)
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # Determine the maximum sequence length
-max_length = tokenizer.model_max_length
-print(max_length)
+# max_length = tokenizer.model_max_length
+# print(max_length)
 
 
-# %%
+# model = GraphormerModel(model_pretrained.config)
+# model = model_pretrained
+
+# parser = argparse.ArgumentParser()
+# GraphormerModel.add_args(parser)
+
+config = GraphormerConfig()
+model = GraphormerModel(config)
+
+
 def tokenize(string):
     """
     Tokenize and encode a string using the provided tokenizer.
@@ -166,7 +160,7 @@ def pIC50_to_IC50(pic50_values):
 
 # %%
 # Load the test data
-test_df = pd.read_csv('test.csv')
+test_df = pd.read_csv('../baseline/test.csv')
 
 # Tokenize the 'Smiles' column in the test dataset
 tqdm.pandas()

@@ -7,8 +7,8 @@ from typing import Optional, Any, Union, Callable
 from torch.nn import functional as F
 from torch import Tensor
 
-class PositionalEncoding(nn.Module):
 
+class PositionalEncoding(nn.Module):
   def __init__(self, d_model, dropout=.1, max_len=1024):
     super(PositionalEncoding, self).__init__()
     self.dropout = nn.Dropout(p=dropout)

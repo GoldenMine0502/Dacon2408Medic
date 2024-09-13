@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -141,7 +143,32 @@ def process_csv_to_graphs(csv_path, split_ratio=0.8, test=False):
     return dataset
 
 
+def get_args():
+    parser = argparse.ArgumentParser(description="Hyperparameter settings")
+
+    # SPLIT_RATIO 파라미터
+    parser.add_argument('--split_ratio', type=float, default=0.95, help="Train-test split ratio")
+
+    # LEARNING_RATE 파라미터
+    parser.add_argument('--learning_rate', type=float, default=1e-5, help="Learning rate for the optimizer")
+
+    # EPOCH 파라미터
+    parser.add_argument('--epoch', type=int, default=50, help="Number of epochs for training")
+
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
+    args = get_args()
+    print(f"SPLIT_RATIO: {args.split_ratio}")
+    print(f"LEARNING_RATE: {args.learning_rate}")
+    print(f"EPOCH: {args.epoch}")
+
+    SPLIT_RATIO = args.split_ratio
+    LEARNING_RATE = args.learning_rate
+    EPOCH = args.epoch
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # device = 'cuda'
     print('using device:', device, torch.cuda.is_available())
@@ -151,7 +178,7 @@ if __name__ == '__main__':
     test_csv_path = '../dataset/test.csv'
 
     # Process the CSV file and convert to graph format
-    dataset = process_csv_to_graphs(csv_path, split_ratio=0.95)
+    dataset = process_csv_to_graphs(csv_path, split_ratio=SPLIT_RATIO)
     test_dataset = process_csv_to_graphs(test_csv_path, split_ratio=1, test=True)
 
     # Print out the dataset structure
@@ -183,35 +210,31 @@ if __name__ == '__main__':
 
     train_loader = DataLoader(
         dataset['train'],
-        batch_size=24,
+        batch_size=16,
         shuffle=True,
         collate_fn=collator,
-        num_workers=4
+        num_workers=6
     )
 
     validation_loader = DataLoader(
         dataset['validation'],
-        batch_size=24,
+        batch_size=4,
         collate_fn=collator,
         num_workers=4
     )
-
 
     features = (
         'input_nodes', 'input_edges', 'attn_bias', 'in_degree', 'out_degree', 'spatial_pos', 'attn_edge_type', 'labels'
     )
 
-
     features_test = (
         'input_nodes', 'input_edges', 'attn_bias', 'in_degree', 'out_degree', 'spatial_pos', 'attn_edge_type'
     )
 
-    LEARNING_RATE = 1e-5
     criterion = nn.MSELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     # for train in train_loader:
     #     print(train)
-    print('lr:', LEARNING_RATE)
 
     def data_to_cuda(features, item):
         res = {}
@@ -222,7 +245,6 @@ if __name__ == '__main__':
         return res
 
     # train
-    EPOCH = 50
     for epoch in range(1, EPOCH + 1):
         losses = []
 
@@ -321,7 +343,7 @@ if __name__ == '__main__':
     test_df = pd.read_csv('../dataset/test.csv')
     test_df["IC50_nM"] = test_ic50_predictions
     submission_df = test_df[["ID", "IC50_nM"]]
-    submission_df.to_csv("submission.csv", index=False)
+    submission_df.to_csv("submission_{}_{}_{}.csv".format(EPOCH, LEARNING_RATE, SPLIT_RATIO), index=False)
 
 
     # trainer = Trainer(

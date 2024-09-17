@@ -84,12 +84,15 @@ class LossCalculator(nn.Module):
 
     def print_status(self, validation=False):
         A = np.mean(np.sqrt(self.mses) / (np.max(self.predictions) - np.min(self.predictions))).item()
+        A = (1 - min(A, 1))
+
         B = np.mean(self.errors <= 0.5).item()
-        score = 0.5 * (1 - min(A, 1)) + 0.5 * B
+
+        score = 0.5 * A + 0.5 * B
         loss = sum(self.losses) / max(len(self.losses), 1)
 
         print('=== epoch {}{}==='.format(self.current, ' (Validation) ' if validation else ' '))
-        print('loss: {:.4f} score: {:.8f}, A: {:.2f} B: {:.2f}'.format(loss, A, B, score))
+        print('loss: {:.4f} score: {:.8f}, A: {:.3f} B: {:.3f}'.format(loss, score, A, B))
 
     def forward(self, prediction, target):
         loss = self.criterion(prediction, target)

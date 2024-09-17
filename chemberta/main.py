@@ -61,7 +61,7 @@ def main():
 
     model.to(DEVICE)
 
-    for epoch in tqdm(range(EPOCH)):
+    for epoch in tqdm(range(1, EPOCH + 1)):
         # Training loop
         model.train()
         loss_calculator.epoch(epoch)

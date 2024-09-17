@@ -295,7 +295,7 @@ if __name__ == '__main__':
             A = np.mean(np.sqrt(self.mses) / (np.max(self.predictions) - np.min(self.predictions))).item()
             B = np.mean(self.errors <= 0.5).item()
             score = 0.5 * (1 - min(A, 1)) + 0.5 * B
-            loss = sum(self.loss) / max(len(self.loss), 1)
+            loss = sum(self.losses) / max(len(self.losses), 1)
 
             print('loss: {}, A: {} B: {} score: {}'.format(loss, A, B, score))
 
@@ -304,13 +304,13 @@ if __name__ == '__main__':
 
             prediction = prediction.cpu().detach().numpy().squeeze()
             target = target.cpu().detach().numpy().squeeze()
-            loss_cpu = loss.cpu().detach().numpy().squeeze()
 
+            loss_all = np.abs(prediction - target) ** 2
             abs_error_ic50 = np.abs(pIC50_to_IC50(prediction) - pIC50_to_IC50(target))
 
             self.losses.append(loss.item())
             self.errors = np.concatenate((self.errors, abs_error_ic50))
-            self.mses = np.concatenate((self.mses, loss_cpu))
+            self.mses = np.concatenate((self.mses, loss_all))
             self.predictions = np.concatenate((self.predictions, prediction))
 
             return loss

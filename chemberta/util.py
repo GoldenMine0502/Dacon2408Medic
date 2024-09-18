@@ -69,6 +69,20 @@ def smiles2graph(smiles_string, remove_hs=True, reorder_atoms=False):
 
     return graph
 
+
+def huber_loss(y_pred, y_true, delta=0.5):
+    # Calculate the absolute error
+    abs_error = torch.abs(y_true - y_pred)
+
+    # Calculate the Huber loss based on the absolute error
+    loss = torch.where(abs_error <= delta,
+                       1 * abs_error ** 2,
+                       delta * (abs_error - 0.5 * delta))
+
+    # Return the mean loss
+    return torch.mean(loss)
+
+
 class LossCalculator(nn.Module):
     def __init__(self, criterion=nn.MSELoss()):
         super(LossCalculator, self).__init__()

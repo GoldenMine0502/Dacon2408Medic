@@ -7,7 +7,7 @@ import os
 from tqdm import tqdm
 from dataloader import KFoldDataModule
 from model import ChemBERT
-from util import LossCalculator
+from util import LossCalculator, huber_loss
 
 os.environ["WANDB_DISABLED"] = "true"
 tqdm.pandas()
@@ -40,7 +40,6 @@ EPOCH = 80
 
 
 def main():
-
     args = parse_args()
 
     datamodule = KFoldDataModule(args)
@@ -51,12 +50,13 @@ def main():
     model = ChemBERT(
         out_dim=1,
         fp_dim=300,
-        max_chemberta_len=8,
-        max_graphormer_len=4,
+        max_chemberta_len=1,
+        max_graphormer_len=1,
     )
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
     loss_calculator = LossCalculator(
         # criterion=ThresholdPenaltyLoss(threshold=0.5, penalty_weight=0.1)
+        criterion=huber_loss
     )
 
     model.to(DEVICE)

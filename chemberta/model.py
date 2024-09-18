@@ -43,9 +43,9 @@ class GraphormerFeatureExtractor(nn.Module):
             ignore_mismatched_sizes=True,
         )
         self.encoder = self.model.encoder
-        self.decoder = GraphormerFeatureDecoder(max_len)  # attention pooling
+        # self.decoder = GraphormerFeatureDecoder(max_len)  # attention pooling
         # self.decoder = get_statistical  # get mean of dim 1
-        # self.decoder = zero_index  # graphormer에서 기본으로 사용함. 첫번째 logits를 제외하고 전부 제거해 크기 맞춤
+        self.decoder = zero_index  # graphormer에서 기본으로 사용함. 첫번째 logits를 제외하고 전부 제거해 크기 맞춤
 
     def forward(self,
                 input_nodes,
@@ -89,9 +89,8 @@ class ChembertaFeatureExtractor(nn.Module):
             selected_chemberta_model,
             num_labels=1
         )
-        self.chemberta_decoder = ChembertaDecoder(
-            max_len=max_len
-        )
+        # self.chemberta_decoder = ChembertaDecoder(max_len=max_len)
+        self.chemberta_decoder = zero_index
 
         # <class 'transformers.models.roberta.modeling_roberta.RobertaForSequenceClassification'>
         print(type(self.chemberta_encoder))

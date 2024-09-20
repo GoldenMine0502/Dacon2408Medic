@@ -126,7 +126,12 @@ class ChemBERT(nn.Module):
         projection_dim = (768 * max_chemberta_len +
                           768 * max_graphormer_len +
                           fp_dim)
-        print('projection dim:', projection_dim)
+        print('projection dim: {} (768 * {}(chemberta) + 768 * {}(graphormer) + {}(fp_dim)'.format(
+            projection_dim,
+            max_chemberta_len,
+            max_graphormer_len,
+            fp_dim,
+        ))
 
         self.projection = nn.Linear(in_features=projection_dim, out_features=projection_dim)
         self.ln = nn.LayerNorm(normalized_shape=projection_dim)
@@ -153,7 +158,8 @@ class ChemBERT(nn.Module):
 
         # h = torch.concat([enc_out], dim=1)
         # print(enc_out.shape, fp.shape)
-        h = torch.concat([enc_out, graphormer_out, fp], dim=0)
+        # h = torch.concat([enc_out, graphormer_out, fp], dim=0)
+        h = torch.concat([enc_out, graphormer_out], dim=0)
         # h = torch.concat([enc_out, batch.mol_f, graphormer_out], dim=1)
         h = self.projection(h)
         h = self.ln(h)

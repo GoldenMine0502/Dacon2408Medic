@@ -49,7 +49,7 @@ def main():
 
     model = ChemBERT(
         out_dim=1,
-        fp_dim=300,
+        fp_dim=0,
         max_chemberta_len=1,
         max_graphormer_len=1,
     )

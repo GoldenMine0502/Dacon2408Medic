@@ -7,7 +7,7 @@ import os
 from tqdm import tqdm
 from dataloader import KFoldDataModule
 from model import ChemBERT
-from util import LossCalculator, huber_loss
+from util import LossCalculator, huber_loss, mse_threshold_no_learn, ThresholdPenaltyLoss, MSLELoss
 
 os.environ["WANDB_DISABLED"] = "true"
 tqdm.pandas()
@@ -28,6 +28,10 @@ def parse_args():
     parser.add_argument('--num_workers', type=int, default=0, help='Number of workers for data loading')
     parser.add_argument('--persistent_workers', type=bool, default=False, help='persistent_workers')
     parser.add_argument('--pin_memory', action='store_true', help='Use pin memory for data loading')
+    parser.add_argument('--criterion', default='mse', help='mse(default), msle, huber, threshold_penalty, threadshold_nolearn')
+    parser.add_argument('--learning_rate', type=float, default=1e-3, help='learning rate')
+    parser.add_argument('--steplr', type=int, default=5, help='step lr')
+    parser.add_argument('--epoch', type=int, default=60, help='epoch')
 
     # 파싱된 인자를 args에 저장
     args = parser.parse_args()
@@ -36,11 +40,12 @@ def parse_args():
 
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-EPOCH = 80
 
 
 def main():
     args = parse_args()
+
+    epochs = args.epoch
 
     datamodule = KFoldDataModule(args)
 
@@ -53,15 +58,30 @@ def main():
         max_chemberta_len=1,
         max_graphormer_len=1,
     )
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
+    print('learning rate:', args.learning_rate)
+
+    if args.criterion == 'threshold_penalty':
+        loss = ThresholdPenaltyLoss(threshold=0.5, penalty_weight=0.1)
+    elif args.criterion == 'threshold_nolearn':
+        loss = mse_threshold_no_learn
+    elif args.criterion == 'huber':  # 오차 없이 예측해야 하므로 별로임
+        loss = huber_loss
+    elif args.criterion == 'msle':
+        loss = MSLELoss()
+    else:
+        loss = nn.MSELoss()
+
     loss_calculator = LossCalculator(
-        # criterion=ThresholdPenaltyLoss(threshold=0.5, penalty_weight=0.1)
-        criterion=huber_loss
+        criterion=loss
     )
+
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.steplr, gamma=0.1)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=5)
 
     model.to(DEVICE)
 
-    for epoch in tqdm(range(1, EPOCH + 1)):
+    for epoch in range(1, epochs + 1):
         # Training loop
         model.train()
         loss_calculator.epoch(epoch)
@@ -78,6 +98,7 @@ def main():
             loss.backward()
             optimizer.step()
 
+        scheduler.step()
         loss_calculator.print_status()
 
         # Validation loop

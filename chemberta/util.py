@@ -83,11 +83,46 @@ def huber_loss(y_pred, y_true, delta=0.5):
     return torch.mean(loss)
 
 
+# 0.5 = B 값의 threshold는 0.5 임
+def mse_threshold_no_learn(y_true, y_pred, epsilon=0.5):
+    error = torch.abs(y_pred - y_true)
+    loss = torch.where(error < epsilon, 0, (y_pred - y_true) ** 2)
+    return torch.mean(loss)
+
+
+class MSLELoss(nn.Module):
+    def __init__(self):
+        super(MSLELoss, self).__init__()
+        self.mse = nn.MSELoss()
+
+    def forward(self, y_pred, y_true):
+        # Ensure no negative values by clipping to 0
+        y_pred = torch.clamp(y_pred, min=0)
+        y_true = torch.clamp(y_true, min=0)
+
+        # Logarithmic transformation (log(1 + x))
+        log_pred = torch.log1p(y_pred)
+        log_true = torch.log1p(y_true)
+
+        # Compute MSE between the logarithms
+        return self.mse(log_pred, log_true)
+
+def get_name(obj):
+    # 함수인지 확인
+    if callable(obj):
+        return obj.__name__
+    # 객체인 경우 클래스 이름 반환
+    else:
+        return obj.__class__.__name__
+
+
 class LossCalculator(nn.Module):
     def __init__(self, criterion=nn.MSELoss()):
         super(LossCalculator, self).__init__()
 
         self.criterion = criterion
+
+        print('using loss:', type(criterion))
 
     def epoch(self, epoch=None):
         self.current = epoch
@@ -106,7 +141,7 @@ class LossCalculator(nn.Module):
         loss = sum(self.losses) / max(len(self.losses), 1)
 
         print('=== epoch {}{}==='.format(self.current, ' (Validation) ' if validation else ' '))
-        print('loss: {:.4f} score: {:.8f}, A: {:.3f} B: {:.3f}'.format(loss, score, A, B))
+        print('loss: {:.8f} score: {:.8f}, A: {:.3f} B: {:.3f}'.format(loss, score, A, B))
 
     def forward(self, prediction, target):
         loss = self.criterion(prediction, target)
@@ -154,6 +189,7 @@ class ThresholdPenaltyLoss(nn.Module):
 
 def zero_index(value):
     return value[:, 0, ...]
+
 
 def get_statistical(value, axis=1, only_mean=True):
     mean_val = torch.mean(value, dim=axis)
